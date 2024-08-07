@@ -2,6 +2,10 @@
   "userService": {
     "address": "http://localhost",
     "port": "8080",
+    "adminUser": {
+      "username": "admin",
+      "password": "R84+sc5+6'cx'(35qcmaf.=1;D9Hiq[j-J=ol$b{n)VaQ[HQ6N"
+    },
     "database": {
       "url": "jdbc:postgresql://localhost:5432/user_service",
       "user": "postgres",
@@ -11,6 +15,10 @@
   "clickerService": {
     "address": "http://localhost",
     "port": "8080",
+    "adminUser": {
+      "username": "admin",
+      "password": "R84+sc5+6'cx'(35qcmaf.=1;D9Hiq[j-J=ol$b{n)VaQ[HQ6N"
+    },
     "database": {
       "url": "jdbc:postgresql://localhost:5432/clicker_service",
       "user": "postgres",

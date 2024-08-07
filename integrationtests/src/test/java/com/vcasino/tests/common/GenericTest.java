@@ -8,6 +8,8 @@ import com.vcasino.tests.common.config.DbConfig;
 import com.vcasino.tests.common.config.ServiceConfig;
 import com.vcasino.tests.model.AuthenticationResponse;
 import com.vcasino.tests.model.Response;
+import com.vcasino.tests.model.Row;
+import com.vcasino.tests.model.User;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.InputStream;
@@ -19,7 +21,15 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.testng.AssertJUnit.assertEquals;
@@ -28,8 +38,7 @@ import static org.testng.AssertJUnit.assertEquals;
 public abstract class GenericTest {
 
     protected Service service;
-    protected ServiceConfig serviceConfig;
-    protected String jwtToken;
+    protected ServiceConfig config;
     protected Gson gson = new Gson();
     protected AuthenticationResponse auth;
 
@@ -41,6 +50,7 @@ public abstract class GenericTest {
     protected void init() throws Exception {
         log.info("Create client");
 
+        auth = null;
         loadServiceConfig();
 
         log.info("Client created");
@@ -57,12 +67,14 @@ public abstract class GenericTest {
         JsonObject serviceJson = jsonObject.getAsJsonObject(service.getName());
 
         DbConfig dbConfig = gson.fromJson(serviceJson.getAsJsonObject("database"), DbConfig.class);
+        User admin = gson.fromJson(serviceJson.getAsJsonObject("adminUser"), User.class);
 
-        serviceConfig = new ServiceConfig();
-        serviceConfig.setService(service);
-        serviceConfig.setAddress(serviceJson.get("address").getAsString());
-        serviceConfig.setPort(serviceJson.get("port").getAsString());
-        serviceConfig.setDbConfig(dbConfig);
+        config = new ServiceConfig();
+        config.setAdminUser(admin);
+        config.setService(service);
+        config.setAddress(serviceJson.get("address").getAsString());
+        config.setPort(serviceJson.get("port").getAsString());
+        config.setDbConfig(dbConfig);
     }
 
     protected String performHttpGet(String endpoint) throws Exception {
@@ -79,17 +91,17 @@ public abstract class GenericTest {
         }
     }
 
-    protected String performHttpPost(String endpoint, String body) throws Exception {
-        return performHttpPost(endpoint, body, null);
+    protected String performHttpPost(String endpoint, String body, Map<String, String> attrs) throws Exception {
+        return performHttpPost(endpoint, body, attrs, 200);
     }
 
-    protected String performHttpPost(String endpoint, String body, Map<String, String> attrs) throws Exception {
+    protected String performHttpPost(String endpoint, String body, Map<String, String> attrs, int expectedCode) throws Exception {
         String url = buildUrl(endpoint);
         log.info("POST Request to {}: ", url);
 
         try (HttpClient client = HttpClient.newHttpClient()) {
             HttpRequest request = buildPostRequest(url, body, attrs);
-            return performHttp(client, request);
+            return performHttp(client, request, expectedCode);
         }
     }
 
@@ -118,8 +130,8 @@ public abstract class GenericTest {
     }
 
     private String buildUrl(String endpoint) {
-        String address = serviceConfig.getAddress();
-        String port = serviceConfig.getPort();
+        String address = config.getAddress();
+        String port = config.getPort();
         return address + ":" + port + endpoint;
     }
 
@@ -129,17 +141,28 @@ public abstract class GenericTest {
         return attrs;
     }
 
+    protected Map<String, String> getAttrsWithAuthorization() {
+        Map<String, String> attrs = new HashMap<>();
+        attrs.put("Content-Type", "application/json");
+        setAuthorizationHeader(attrs);
+        return attrs;
+    }
+
     protected void setAuthorizationHeader(Map<String, String> attrs) {
-        attrs.put("Authorization", "Bearer " + jwtToken);
+        attrs.put("Authorization", "Bearer " + auth.getToken());
     }
 
     private String performHttp(HttpClient client, HttpRequest request) throws Exception {
+        return performHttp(client, request, 200);
+    }
+
+    private String performHttp(HttpClient client, HttpRequest request, int expectedCode) throws Exception {
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
         String body = response.body();
 
         assertEquals("Request finished with status code " + response.statusCode() + "\nMessage: " + body,
-                200,
+                expectedCode,
                 response.statusCode());
 
         log.info("Response: {}", body);
@@ -177,11 +200,28 @@ public abstract class GenericTest {
     protected AuthenticationResponse authorizeUser(String username) throws Exception {
         log.info("Authorize user {}", username);
 
-        String body = "{\"username\":\"" + username + "\",\"password\":\"test1234\"}";
+        String body = objToJson(Map.of("username", username, "password", "test1234"));
         String response = performHttpPost("/api/v1/users/auth/login", body, getDefaultAttrs());
         auth = gson.fromJson(response, AuthenticationResponse.class);
 
         return auth;
+    }
+
+    protected AuthenticationResponse authorizeAdmin() throws Exception {
+        log.info("Authorize admin");
+
+        String username = config.getAdminUser().getUsername();
+        String password = config.getAdminUser().getPassword();
+
+        String body = objToJson(Map.of("username", username, "password", password));
+        String response = performHttpPost("/api/v1/users/auth/login", body, getDefaultAttrs());
+        auth = gson.fromJson(response, AuthenticationResponse.class);
+
+        return auth;
+    }
+
+    protected String objToJson(Map<String, String> obj) {
+        return gson.toJson(obj);
     }
 
     protected void sleep(long ms) throws Exception {
@@ -192,5 +232,51 @@ public abstract class GenericTest {
     protected Response jsonToObject(String s) {
         log.info("Convert {}", s);
         return new Response(gson.fromJson(s, LinkedTreeMap.class));
+    }
+
+    private Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(
+                config.getDbConfig().getUrl(),
+                config.getDbConfig().getUser(),
+                config.getDbConfig().getPassword()
+        );
+    }
+
+    protected <T> T fromJson(String jsonString, Class<T> clazz) {
+        return gson.fromJson(jsonString, clazz);
+    }
+
+    protected <T> T fromJson(Object obj, Class<T> clazz) {
+        return gson.fromJson(gson.toJson(obj), clazz);
+    }
+
+    protected List<Row> executeQuery(String query) {
+        List<Row> rows = new ArrayList<>();
+
+        log.info("Execute query {}", query);
+
+        try (Connection connection = getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(query)) {
+
+            ResultSetMetaData metaData = resultSet.getMetaData();
+            int columnCount = metaData.getColumnCount();
+
+            while (resultSet.next()) {
+                Map<String, Object> rowMap = new HashMap<>();
+                for (int i = 1; i <= columnCount; i++) {
+                    String columnName = metaData.getColumnName(i);
+                    Object value = resultSet.getObject(i);
+                    rowMap.put(columnName, value);
+                }
+                Row row = new Row(rowMap);
+                rows.add(row);
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return rows;
     }
 }

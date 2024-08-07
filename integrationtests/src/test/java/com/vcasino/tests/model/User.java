@@ -8,5 +8,6 @@ public class User {
     String lastname;
     String username;
     String email;
+    String password;
     Country country;
 }
