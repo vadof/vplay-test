@@ -32,7 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.Assert.assertEquals;
 
 @Slf4j
 public abstract class GenericTest {
@@ -51,12 +51,12 @@ public abstract class GenericTest {
         log.info("Create client");
 
         auth = null;
-        loadServiceConfig();
+        config = loadServiceConfig(service);
 
         log.info("Client created");
     }
 
-    private void loadServiceConfig() {
+    private ServiceConfig loadServiceConfig(Service service) {
         InputStream inputStream = getClass().getClassLoader().getResourceAsStream("configuration.json");
         if (inputStream == null) {
             throw new RuntimeException("Configuration file not found");
@@ -69,12 +69,14 @@ public abstract class GenericTest {
         DbConfig dbConfig = gson.fromJson(serviceJson.getAsJsonObject("database"), DbConfig.class);
         User admin = gson.fromJson(serviceJson.getAsJsonObject("adminUser"), User.class);
 
-        config = new ServiceConfig();
-        config.setAdminUser(admin);
-        config.setService(service);
-        config.setAddress(serviceJson.get("address").getAsString());
-        config.setPort(serviceJson.get("port").getAsString());
-        config.setDbConfig(dbConfig);
+        ServiceConfig serviceConfig = new ServiceConfig();
+        serviceConfig.setAdminUser(admin);
+        serviceConfig.setService(service);
+        serviceConfig.setAddress(serviceJson.get("address").getAsString());
+        serviceConfig.setPort(serviceJson.get("port").getAsString());
+        serviceConfig.setDbConfig(dbConfig);
+
+        return serviceConfig;
     }
 
     protected String performHttpGet(String endpoint) throws Exception {
@@ -161,9 +163,9 @@ public abstract class GenericTest {
 
         String body = response.body();
 
-        assertEquals("Request finished with status code " + response.statusCode() + "\nMessage: " + body,
+        assertEquals(response.statusCode(),
                 expectedCode,
-                response.statusCode());
+                "Request finished with status code " + response.statusCode() + "\nMessage: " + body);
 
         log.info("Response: {}", body);
 
@@ -234,7 +236,7 @@ public abstract class GenericTest {
         return new Response(gson.fromJson(s, LinkedTreeMap.class));
     }
 
-    private Connection getConnection() throws SQLException {
+    private Connection getConnection(ServiceConfig config) throws SQLException {
         return DriverManager.getConnection(
                 config.getDbConfig().getUrl(),
                 config.getDbConfig().getUser(),
@@ -251,11 +253,15 @@ public abstract class GenericTest {
     }
 
     protected List<Row> executeQuery(String query) {
+        return executeQuery(query, config);
+    }
+
+    private List<Row> executeQuery(String query, ServiceConfig config) {
         List<Row> rows = new ArrayList<>();
 
         log.info("Execute query {}", query);
 
-        try (Connection connection = getConnection();
+        try (Connection connection = getConnection(config);
              Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(query)) {
 
@@ -278,5 +284,30 @@ public abstract class GenericTest {
         }
 
         return rows;
+    }
+
+    protected void executeUpdate(String query) {
+        executeUpdate(query, config);
+    }
+
+    private void executeUpdate(String query, ServiceConfig config) {
+        log.info("Execute update {}", query);
+
+        try (Connection connection = getConnection(config);
+             Statement statement = connection.createStatement()) {
+
+            int affectedRows = statement.executeUpdate(query);
+            assertEquals(affectedRows, 1);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    protected Long getUserId(String username) {
+        ServiceConfig userServiceConfig = loadServiceConfig(Service.USER);
+        String query = "SELECT * FROM my_user u WHERE u.username = '%s'".formatted(username);
+        List<Row> row = executeQuery(query, userServiceConfig);
+        assertEquals(row.size(), 1);
+        return row.getFirst().getLong("id");
     }
 }
