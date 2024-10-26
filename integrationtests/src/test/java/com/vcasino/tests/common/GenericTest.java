@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 
 @Slf4j
 public abstract class GenericTest {
@@ -41,6 +42,7 @@ public abstract class GenericTest {
     protected ServiceConfig config;
     protected Gson gson = new Gson();
     protected AuthenticationResponse auth;
+    protected AuthenticationResponse adminAuth;
 
     protected void init(Service service) throws Exception {
         this.service = service;
@@ -144,13 +146,18 @@ public abstract class GenericTest {
     }
 
     protected Map<String, String> getAttrsWithAuthorization() {
-        Map<String, String> attrs = new HashMap<>();
-        attrs.put("Content-Type", "application/json");
-        setAuthorizationHeader(attrs);
+        return getAttrsWithAuthorization(false);
+    }
+
+    protected Map<String, String> getAttrsWithAuthorization(boolean admin) {
+        Map<String, String> attrs = getDefaultAttrs();
+        setAuthorizationHeader(attrs, admin ? adminAuth : auth);
         return attrs;
     }
 
-    protected void setAuthorizationHeader(Map<String, String> attrs) {
+    private void setAuthorizationHeader(Map<String, String> attrs, AuthenticationResponse auth) {
+        assertNotNull(auth);
+        assertNotNull(auth.getToken());
         attrs.put("Authorization", "Bearer " + auth.getToken());
     }
 
@@ -217,9 +224,9 @@ public abstract class GenericTest {
 
         String body = objToJson(Map.of("username", username, "password", password));
         String response = performHttpPost("/api/v1/users/auth/login", body, getDefaultAttrs());
-        auth = gson.fromJson(response, AuthenticationResponse.class);
+        adminAuth = gson.fromJson(response, AuthenticationResponse.class);
 
-        return auth;
+        return adminAuth;
     }
 
     protected String objToJson(Map<String, String> obj) {

@@ -96,13 +96,13 @@ public class AuthenticationTests extends GenericTest {
 
         log.info("Try to create admin with user authorization");
 
-        attrs = getAttrsWithAuthorization();
+        attrs = getAttrsWithAuthorization(false);
         performHttpPost("/api/v1/users/auth/admin/register", body, attrs, 403);
 
         log.info("Create admin with admin authentication");
 
         authorizeAdmin();
-        attrs = getAttrsWithAuthorization();
+        attrs = getAttrsWithAuthorization(true);
         String s = performHttpPost("/api/v1/users/auth/admin/register", body, attrs, 200);
 
         Response response = jsonToObject(s);
@@ -132,7 +132,7 @@ public class AuthenticationTests extends GenericTest {
         List<Row> res = executeQuery(query);
 
         assertEquals(1, res.size());
-        Row row = res.get(0);
+        Row row = res.getFirst();
 
         assertEquals(user.getEmail(), row.get("email"));
         assertEquals(role, row.get("role"));

@@ -53,11 +53,22 @@ public class AccountTests extends GenericClickerTest {
         assertTrue(account.getNetWorth().compareTo(expectedBalanced) >= 0);
     }
 
+    @Test(description = "Add coins to account using admin auth")
+    void adminAddCoinsToAccount() throws Exception {
+        createAccount();
+        long amount = 10000L;
+        addCoinsToAccount(accountId, amount);
+        Account account = getAccount();
+
+        assertEquals(amount, account.getNetWorth().longValue());
+        assertEquals(account.getLevel(), 2);
+    }
+
     private void compareWithDatabase(Account account) {
         log.info("Compare response with database record");
 
         Row row = getAccountFromDatabase();
-        assertNotNull(row.getLong("user_id"));
+        assertNotNull(row.getLong("id"));
         assertEquals(row.getInt("level"), account.getLevel());
         assertEquals(row.getBigDecimal("net_worth"), account.getNetWorth());
         assertEquals(row.getBigDecimal("balance_coins"), account.getBalanceCoins());
