@@ -243,6 +243,17 @@ public abstract class GenericTest {
         return new Response(gson.fromJson(s, LinkedTreeMap.class));
     }
 
+    protected List<Response> jsonToListObjects(String s) {
+        log.info("Convert {}", s);
+        List<LinkedTreeMap<String, ?>> list = gson.fromJson(s, List.class);
+        List<Response> responses = new ArrayList<>();
+
+        for (LinkedTreeMap<String, ?> map : list) {
+            responses.add(new Response(map));
+        }
+        return responses;
+    }
+
     private Connection getConnection(ServiceConfig config) throws SQLException {
         return DriverManager.getConnection(
                 config.getDbConfig().getUrl(),
