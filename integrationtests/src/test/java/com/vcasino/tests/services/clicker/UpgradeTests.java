@@ -34,20 +34,20 @@ public class UpgradeTests extends GenericClickerTest {
         account.getSectionUpgrades().sort(Comparator.comparingInt(SectionUpgrades::getOrder));
         SectionUpgrades selectedSection = account.getSectionUpgrades().getFirst();
 
-        Upgrade toUpdate = null;
+        Upgrade toBuy = null;
         for (Upgrade upgrade : selectedSection.getUpgrades()) {
             if (upgrade.getAvailable()) {
-                toUpdate = upgrade;
+                toBuy = upgrade;
                 break;
             }
         }
-        assertNotNull(toUpdate, "Not found upgrade to update");
-        log.info("Chosen to buy {}", toUpdate);
+        assertNotNull(toBuy, "Not found upgrade to update");
+        log.info("Chosen to buy {}", toBuy);
 
-        addCoinsToAccount(accountId, toUpdate.getPrice());
+        addCoinsToAccount(accountId, toBuy.getPrice());
 
         String body = "{\"upgradeName\":\"%s\", \"upgradeLevel\":%s}"
-                .formatted(toUpdate.getName(), toUpdate.getLevel());
+                .formatted(toBuy.getName(), toBuy.getLevel());
 
         String res = performHttpPost("/api/v1/clicker/upgrades", body, getAttrsWithAuthorization(false));
         Account updatedAccount = toAccount(res);
@@ -65,21 +65,21 @@ public class UpgradeTests extends GenericClickerTest {
 
         log.info("Check if upgrade was updated");
 
-        String toUpdateName = toUpdate.getName();
+        String boughtUpgradeName = toBuy.getName();
         Optional<Upgrade> optionalUpdatedUpgrade = updatedAccount.getSectionUpgrades()
                 .stream()
                 .filter(su -> su.getSection().equals(selectedSection.getSection()))
                 .findFirst().get()
                 .getUpgrades().stream()
-                .filter(u -> u.getName().equals(toUpdateName))
+                .filter(u -> u.getName().equals(boughtUpgradeName))
                 .findFirst();
 
         assertTrue(optionalUpdatedUpgrade.isPresent());
         Upgrade updatedUpgrade = optionalUpdatedUpgrade.get();
 
-        assertEquals(updatedUpgrade.getLevel(), toUpdate.getLevel() + 1);
-        assertTrue(updatedUpgrade.getPrice() > toUpdate.getPrice());
-        assertTrue(updatedUpgrade.getProfitPerHour() > toUpdate.getProfitPerHour());
+        assertEquals(updatedUpgrade.getLevel(), toBuy.getLevel() + 1);
+        assertTrue(updatedUpgrade.getPrice() > toBuy.getPrice());
+        assertTrue(updatedUpgrade.getProfitPerHour() > toBuy.getProfitPerHour());
     }
 
     @Test(description = "Buy all upgrades")
@@ -112,20 +112,20 @@ public class UpgradeTests extends GenericClickerTest {
         boolean canUpdate = true;
         while (totalElements > 0 && canUpdate) {
             canUpdate = false;
-            List<Upgrade> toUpdate = new ArrayList<>();
+            List<Upgrade> toBuy = new ArrayList<>();
 
             for (SectionUpgrades section : account.getSectionUpgrades()) {
                 for (Upgrade upgrade : section.getUpgrades()) {
                     if (upgrade.getAvailable()) {
-                        toUpdate.add(upgrade);
+                        toBuy.add(upgrade);
                         canUpdate = true;
                     }
                 }
             }
 
-            log.info("Found {} upgrades to update", toUpdate.size());
+            log.info("Found {} upgrades to update", toBuy.size());
 
-            for (Upgrade upgrade : toUpdate) {
+            for (Upgrade upgrade : toBuy) {
                 String body = "{\"upgradeName\":\"%s\", \"upgradeLevel\":%s}"
                         .formatted(upgrade.getName(), upgrade.getLevel());
 
@@ -133,7 +133,7 @@ public class UpgradeTests extends GenericClickerTest {
                 account = toAccount(res);
             }
 
-            totalElements -= toUpdate.size();
+            totalElements -= toBuy.size();
         }
 
         assertEquals(totalElements, 0,
