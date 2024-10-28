@@ -121,7 +121,7 @@ public abstract class GenericTest {
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .POST(HttpRequest.BodyPublishers.ofString(body));
+                .POST(body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(body));
         setHeaders(requestBuilder, attrs);
 
         return requestBuilder.build();
