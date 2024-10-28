@@ -70,7 +70,7 @@ public class RewardsTests extends GenericClickerTest {
         Account account;
         long expectedRewardSum = 0;
         for (int i = 0; i < rewards.size(); i++) {
-            expectedRewardSum += rewards.get(i).getReward();
+            expectedRewardSum += getRewardByDay(streakInfo, i + 1);
             if (i != 0) {
                 setStreakLastReceivedToYesterday();
             }
