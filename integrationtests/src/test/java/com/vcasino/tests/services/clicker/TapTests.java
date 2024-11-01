@@ -25,7 +25,7 @@ public class TapTests extends GenericClickerTest {
     }
 
     @Test(description = "Tap works correctly")
-    void tap() throws Exception {
+    void testTap() throws Exception {
         Account account = createAccount();
 
         sleep(1000);
@@ -40,7 +40,7 @@ public class TapTests extends GenericClickerTest {
     }
 
     @Test(description = "Taps recovering correctly")
-    void tapsRecoveringCorrectly() throws Exception {
+    void testTapsRecoveringCorrectly() throws Exception {
         Account account = createAccount();
 
         sleep(1000);
@@ -61,7 +61,7 @@ public class TapTests extends GenericClickerTest {
     }
 
     @Test(description = "If amount is more than can be taped over time, suspicious action is added")
-    void cannotTapMoreThanPossible() throws Exception {
+    void testCannotTapMoreThanPossible() throws Exception {
         Account account = createAccount();
 
         sleep(1000);
@@ -86,7 +86,7 @@ public class TapTests extends GenericClickerTest {
     }
 
     @Test(description = "If 2 tap requests with the same timestamp are sent, the second request is ignored")
-    void sameTimestampTapIsIgnored() throws Exception {
+    void testSameTimestampTapIsIgnored() throws Exception {
         Account account = createAccount();
 
         sleep(1000);
@@ -107,7 +107,7 @@ public class TapTests extends GenericClickerTest {
     }
 
     @Test(description = "Earn per hour is updated after tap")
-    void earnPerHourIsUpdatedAfterTap() throws Exception {
+    void testEarnPerHourIsUpdatedAfterTap() throws Exception {
         Account account = createAccount();
         sleep(1000);
 
@@ -161,7 +161,7 @@ public class TapTests extends GenericClickerTest {
         log.info("Send tap request");
         String body = "{\"amount\": %s,\"availableTaps\": %s,\"timestamp\": %s}"
                 .formatted(amount, availableTaps, timestamp);
-        String res = performHttpPost("/api/v1/clicker/tap", body, getAttrsWithAuthorization(), 200);
+        String res = performHttpPost(buildUrl("/tap"), body, getAttrsWithAuthorization(), 200);
         return fromJson(res, Account.class);
     }
 

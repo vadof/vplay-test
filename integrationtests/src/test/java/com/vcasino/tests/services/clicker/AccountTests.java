@@ -33,7 +33,7 @@ public class AccountTests extends GenericClickerTest {
     }
 
     @Test(description = "Create clicker account")
-    void createClickerAccount() throws Exception {
+    void testCreateClickerAccountTest() throws Exception {
         Account account = createAccount();
 
         compareWithDatabase(account);
@@ -41,9 +41,9 @@ public class AccountTests extends GenericClickerTest {
     }
 
     @Test(description = "Get levels")
-    void getLevels() throws Exception {
+    void testGetLevels() throws Exception {
         createAccount();
-        String res = performHttpGet("/api/v1/clicker/accounts/levels", getAttrsWithAuthorization());
+        String res = performHttpGet(buildUrl("/accounts/levels"), getAttrsWithAuthorization());
         List<Level> levels = Arrays.stream(gson.fromJson(res, Level[].class))
                 .sorted(Comparator.comparingInt(Level::getValue))
                 .toList();
@@ -68,7 +68,7 @@ public class AccountTests extends GenericClickerTest {
     }
 
     @Test(description = "After receiving an account, the balance is updated depending on passive income")
-    void balanceIsUpdatedAfterReceivingAccount() throws Exception {
+    void testBalanceIsUpdatedAfterReceivingAccount() throws Exception {
         createAccount();
         setPassiveEarnPerHourForAccount(36000);
 
@@ -84,7 +84,7 @@ public class AccountTests extends GenericClickerTest {
     }
 
     @Test(description = "Add coins to account using admin auth")
-    void adminAddCoinsToAccount() throws Exception {
+    void testAdminAddCoinsToAccount() throws Exception {
         createAccount();
         long amount = 10000L;
         addCoinsToAccount(accountId, amount);

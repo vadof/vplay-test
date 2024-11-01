@@ -6,6 +6,7 @@ import com.vcasino.tests.model.Row;
 import com.vcasino.tests.services.clicker.model.Account;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.testng.Assert.assertEquals;
@@ -37,7 +38,7 @@ public abstract class GenericClickerTest extends GenericTest {
         authorizeAdmin();
         var attrs = getAttrsWithAuthorization(true);
         String body = "{\"accountId\":%s,\"addCoins\":%s}".formatted(accountId, amount);
-        performHttpPost("/api/v1/clicker/admin/improve", body, attrs);
+        performHttpPost("/api/v1/clicker/admin/accounts/improve", body, attrs);
     }
 
     protected Row getAccountFromDatabase() {
@@ -63,5 +64,17 @@ public abstract class GenericClickerTest extends GenericTest {
 
     protected Account toAccount(String s) throws Exception {
         return fromJson(s, Account.class);
+    }
+
+    protected String buildUrl(String endpoint) {
+        return "/api/v1/clicker" + endpoint;
+    }
+
+    protected String buildUrl(String endpoint, String... params) {
+        List<String> args = new ArrayList<>();
+        for (int i = 0; i < params.length; i += 2) {
+            args.add(params[i] + "=" + params[i + 1]);
+        }
+        return "/api/v1/clicker" + endpoint + "?" + String.join("&", args);
     }
 }

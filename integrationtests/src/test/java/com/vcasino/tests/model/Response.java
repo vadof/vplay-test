@@ -40,6 +40,14 @@ public class Response {
         return null;
     }
 
+    public Boolean getBoolean(String key) {
+        Object v = fields.get(key);
+        if (v != null) {
+            return (boolean) v;
+        }
+        return null;
+    }
+
     public String getJson(String key) {
         Object v = fields.get(key);
         if (v != null) {

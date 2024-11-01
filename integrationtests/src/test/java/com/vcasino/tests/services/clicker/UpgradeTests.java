@@ -29,7 +29,7 @@ public class UpgradeTests extends GenericClickerTest {
     }
 
     @Test(description = "Buy upgrade")
-    void buyUpgrade() throws Exception {
+    void testBuyUpgrade() throws Exception {
         Account account = createAccount();
         account.getSectionUpgrades().sort(Comparator.comparingInt(SectionUpgrades::getOrder));
         SectionUpgrades selectedSection = account.getSectionUpgrades().getFirst();
@@ -49,7 +49,7 @@ public class UpgradeTests extends GenericClickerTest {
         String body = "{\"upgradeName\":\"%s\", \"upgradeLevel\":%s}"
                 .formatted(toBuy.getName(), toBuy.getLevel());
 
-        String res = performHttpPost("/api/v1/clicker/upgrades", body, getAttrsWithAuthorization(false));
+        String res = performHttpPost(buildUrl("/upgrades"), body, getAttrsWithAuthorization(false));
         Account updatedAccount = toAccount(res);
 
         assertEquals(updatedAccount.getBalanceCoins().longValue(), 0);
@@ -83,7 +83,7 @@ public class UpgradeTests extends GenericClickerTest {
     }
 
     @Test(description = "Buy all upgrades")
-    void buyAllUpgrades() throws Exception {
+    void testBuyAllUpgrades() throws Exception {
         Account account = createAccount();
 
         log.info("Get all upgrades and their total price");
@@ -129,7 +129,7 @@ public class UpgradeTests extends GenericClickerTest {
                 String body = "{\"upgradeName\":\"%s\", \"upgradeLevel\":%s}"
                         .formatted(upgrade.getName(), upgrade.getLevel());
 
-                String res = performHttpPost("/api/v1/clicker/upgrades", body, getAttrsWithAuthorization(false));
+                String res = performHttpPost(buildUrl("/upgrades"), body, getAttrsWithAuthorization(false));
                 account = toAccount(res);
             }
 

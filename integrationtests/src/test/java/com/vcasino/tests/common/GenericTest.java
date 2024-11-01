@@ -20,6 +20,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -86,12 +87,16 @@ public abstract class GenericTest {
     }
 
     protected String performHttpGet(String endpoint, Map<String, String> attrs) throws Exception {
+        return performHttpGet(endpoint, attrs, 200);
+    }
+
+    protected String performHttpGet(String endpoint, Map<String, String> attrs, int expectedCode) throws Exception {
         String url = buildUrl(endpoint);
         log.info("GET Request to {}: ", url);
 
         try (HttpClient client = HttpClient.newHttpClient()) {
             HttpRequest request = buildGetRequest(url, attrs);
-            return performHttp(client, request);
+            return performHttp(client, request, expectedCode);
         }
     }
 
@@ -174,7 +179,7 @@ public abstract class GenericTest {
                 expectedCode,
                 "Request finished with status code " + response.statusCode() + "\nMessage: " + body);
 
-        log.info("Response: {}", body);
+        log.info("Response {}: {}", response.statusCode(), body);
 
         return body;
     }
@@ -327,5 +332,11 @@ public abstract class GenericTest {
         List<Row> row = executeQuery(query, userServiceConfig);
         assertEquals(row.size(), 1);
         return row.getFirst().getLong("id");
+    }
+
+    protected String readFile(String serviceName, String className, String fileName) throws Exception {
+        String resourceName = serviceName + "/" + className + "/" + fileName;
+        URI uri = this.getClass().getClassLoader().getResource(resourceName).toURI();
+        return Files.readString(Path.of(uri));
     }
 }
