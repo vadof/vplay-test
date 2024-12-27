@@ -1,5 +1,6 @@
 package com.vcasino.tests.common;
 
+import com.beust.jcommander.internal.Nullable;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -194,28 +195,52 @@ public abstract class GenericTest {
     }
 
     protected AuthenticationResponse createNewUser() throws Exception {
-        int randomInt = (int) (Math.random() * 10_000_000);
-        String uniqueUsername = "it_user_" + randomInt;
-        String uniqueEmail = uniqueUsername + "@test.com";
+        return createNewUser(null, null, 200);
+    }
 
-        log.info("Create new user {}", uniqueUsername);
+    protected AuthenticationResponse createNewUser(@Nullable String username, @Nullable String password, int expectedCode) throws Exception {
+        if (username == null) {
+            username = generateRandomUsername();
+        }
+
+        log.info("Create new user {}", username);
+
+        String email = expectedCode >= 400 ? generateRandomUsername() + "@test.com" : username + "@test.com";
+
+        if (password == null) {
+            password = "test1234";
+        }
 
         String body = getBodyFromJson(Service.USER.getName() + "/auth/register.json")
-                .replace("${username}", uniqueUsername)
-                .replace("${email}", uniqueEmail);
+                .replace("${username}", username)
+                .replace("${email}", email)
+                .replace("${password}", password);
 
-        String response = performHttpPost("/api/v1/users/auth/register", body, getDefaultAttrs());
+        String response = performHttpPost("/api/v1/users/auth/register", body, getDefaultAttrs(), expectedCode);
 
         auth = gson.fromJson(response, AuthenticationResponse.class);
 
         return auth;
     }
 
+    protected String generateRandomUsername() {
+        int randomInt = (int) (Math.random() * 10_000_000);
+        return "it_user_" + randomInt;
+    }
+
     protected AuthenticationResponse authorizeUser(String username) throws Exception {
+        return authorizeUser(username, "test1234", 200);
+    }
+
+    protected AuthenticationResponse authorizeUser(String username, @Nullable String password, int expectedCode) throws Exception {
         log.info("Authorize user {}", username);
 
-        String body = objToJson(Map.of("username", username, "password", "test1234"));
-        String response = performHttpPost("/api/v1/users/auth/login", body, getDefaultAttrs());
+        if (password == null) {
+            password = "test1234";
+        }
+
+        String body = objToJson(Map.of("username", username, "password", password));
+        String response = performHttpPost("/api/v1/users/auth/login", body, getDefaultAttrs(), expectedCode);
         auth = gson.fromJson(response, AuthenticationResponse.class);
 
         return auth;

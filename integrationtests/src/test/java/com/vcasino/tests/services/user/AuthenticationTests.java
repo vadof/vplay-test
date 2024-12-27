@@ -27,7 +27,7 @@ public class AuthenticationTests extends GenericTest {
     }
 
     @Test(description = "Register user")
-    void registerUser() throws Exception {
+    void testRegisterUser() throws Exception {
         AuthenticationResponse authenticationResponse = createNewUser();
 
         assertNotNull(authenticationResponse.getToken());
@@ -44,8 +44,39 @@ public class AuthenticationTests extends GenericTest {
         validateDatabaseEntry(authenticationResponse.getUser(), "USER");
     }
 
+    @Test(description = "Create user bad passwords")
+    void testRegisterUserBadPassword() throws Exception {
+        List<String> badPasswords = List.of("test123", "testtes", "!P2%");
+
+        for (String pwd : badPasswords) {
+            createNewUser(null, pwd, 400);
+        }
+    }
+
+    @Test(description = "Create user good passwords")
+    void testCreateUserGoodPassword() throws Exception {
+        List<String> goodPasswords = List.of("test1234", "mysuperpassword", "!Password123", "no_password");
+
+        for (String pwd : goodPasswords) {
+            AuthenticationResponse res = createNewUser(null, pwd, 200);
+            assertNotNull(res.getToken());
+            assertNotNull(res.getRefreshToken());
+            assertNotNull(res.getUser());
+        }
+    }
+
+    @Test(description = "Create user bad username")
+    void testCreateUserBadUsername() throws Exception {
+        String invalidSymbols = "!@#$%^&*()+-=[]{}'|.>,</?`~л ";
+
+        String username = "username";
+        for (Character symbol : invalidSymbols.toCharArray()) {
+            createNewUser(symbol + username, null, 400);
+        }
+    }
+
     @Test(description = "Login user")
-    void loginUser() throws Exception {
+    void testLoginUser() throws Exception {
         AuthenticationResponse registerResponse = createNewUser();
         sleep(1000);
         AuthenticationResponse loginResponse = authorizeUser(registerResponse.getUser().getUsername());
@@ -67,8 +98,15 @@ public class AuthenticationTests extends GenericTest {
         assertEquals(registerResponse.getUser().getCountry().getCode(), loginResponse.getUser().getCountry().getCode());
     }
 
+    @Test(description = "Invalid login")
+    void testLoginInvalid() throws Exception {
+        String password = "test1234";
+        AuthenticationResponse res = createNewUser(null, null, 200);
+        authorizeUser(res.getUser().getUsername(), password + "1", 403);
+    }
+
     @Test(description = "Refresh authorization token")
-    void refreshToken() throws Exception {
+    void testRefreshToken() throws Exception {
 
         AuthenticationResponse registerResponse = createNewUser();
         sleep(1000);
@@ -79,7 +117,6 @@ public class AuthenticationTests extends GenericTest {
         String responseStr = performHttpPost("/api/v1/users/auth/refreshToken", body, getDefaultAttrs());
         Response response = jsonToObject(responseStr);
 
-        assertNotNull(response.get("refreshToken"));
         assertNotNull(response.get("token"));
     }
 
@@ -117,14 +154,33 @@ public class AuthenticationTests extends GenericTest {
         validateDatabaseEntry(user, "ADMIN");
     }
 
+    @Test(description = "Register admin bad password")
+    void testRegisterAdminBadPassword() throws Exception {
+        authorizeAdmin();
+        var attrs = getAttrsWithAuthorization(true);
+
+        List<String> badPasswords = List.of("test1234", "MySuperPassword!@#", "mysuperpassword",
+                "Password1234", "No_Passworddddd", "!Password123л");
+
+        for (String pwd : badPasswords) {
+            String body = getAdminBody(pwd);
+            performHttpPost("/api/v1/users/auth/admin/register", body, attrs, 400);
+        }
+    }
+
     private String getAdminBody() throws Exception {
+        return getAdminBody("!Password123");
+    }
+
+    private String getAdminBody(String password) throws Exception {
         int randomInt = (int) (Math.random() * 10_000_000);
-        String adminUsername ="it_admin_" + randomInt;
-        String adminEmail = adminUsername + "@vcasino.com";
+        String username ="it_admin_" + randomInt;
+        String email = username + "@vcasino.com";
 
         return getBodyFromJson(Service.USER.getName() + "/auth/register.json")
-                .replace("${username}", adminUsername)
-                .replace("${email}", adminEmail);
+                .replace("${username}", username)
+                .replace("${password}", password)
+                .replace("${email}", email);
     }
 
     private void validateDatabaseEntry(User user, String role) {

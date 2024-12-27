@@ -1,6 +1,6 @@
 {
   "username": "${username}",
-  "password": "test1234",
+  "password": "${password}",
   "firstname": "Test",
   "lastname": "User",
   "email": "${email}",
