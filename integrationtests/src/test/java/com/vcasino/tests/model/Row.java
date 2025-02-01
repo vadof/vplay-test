@@ -1,12 +1,14 @@
 package com.vcasino.tests.model;
 
 import lombok.AllArgsConstructor;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.Map;
 
 @AllArgsConstructor
+@ToString
 public class Row {
 
     private Map<String, Object> row;

@@ -19,7 +19,7 @@ import static org.testng.Assert.assertTrue;
 public class TapTests extends GenericClickerTest {
 
     @BeforeTest
-    void setup() throws Exception {
+    void setup() {
         init(Service.CLICKER);
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
     }

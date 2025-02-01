@@ -28,7 +28,7 @@ public class AccountTests extends GenericClickerTest {
     private static final Logger log = LoggerFactory.getLogger(AccountTests.class);
 
     @BeforeTest()
-    void setup() throws Exception {
+    void setup() {
         init(Service.CLICKER);
     }
 

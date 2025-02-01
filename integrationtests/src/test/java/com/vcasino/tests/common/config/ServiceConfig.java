@@ -8,7 +8,9 @@ import lombok.Data;
 public class ServiceConfig {
     String address;
     String port;
+    String mailDevUrl;
     Service service;
     DbConfig dbConfig;
+    DbConfig registrationDbConfig;
     User adminUser;
 }

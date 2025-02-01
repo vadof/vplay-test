@@ -8,14 +8,20 @@ import com.google.gson.internal.LinkedTreeMap;
 import com.vcasino.tests.common.config.DbConfig;
 import com.vcasino.tests.common.config.ServiceConfig;
 import com.vcasino.tests.model.AuthenticationResponse;
+import com.vcasino.tests.model.EmailTokenOptions;
 import com.vcasino.tests.model.Response;
 import com.vcasino.tests.model.Row;
 import com.vcasino.tests.model.User;
+import com.vcasino.tests.model.email.Address;
+import com.vcasino.tests.model.email.Email;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -30,9 +36,12 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
@@ -43,21 +52,16 @@ public abstract class GenericTest {
     protected Service service;
     protected ServiceConfig config;
     protected Gson gson = new Gson();
+    protected EmailTokenOptions emailTokenOptions;
     protected AuthenticationResponse auth;
     protected AuthenticationResponse adminAuth;
 
-    protected void init(Service service) throws Exception {
+    protected void init(Service service) {
+        log.info("Use {} service config", service);
+
         this.service = service;
-        init();
-    }
-
-    protected void init() throws Exception {
-        log.info("Create client");
-
         auth = null;
         config = loadServiceConfig(service);
-
-        log.info("Client created");
     }
 
     private ServiceConfig loadServiceConfig(Service service) {
@@ -71,6 +75,7 @@ public abstract class GenericTest {
         JsonObject serviceJson = jsonObject.getAsJsonObject(service.getName());
 
         DbConfig dbConfig = gson.fromJson(serviceJson.getAsJsonObject("database"), DbConfig.class);
+        DbConfig registrationDbConfig = gson.fromJson(serviceJson.getAsJsonObject("registrationDatabase"), DbConfig.class);
         User admin = gson.fromJson(serviceJson.getAsJsonObject("adminUser"), User.class);
 
         ServiceConfig serviceConfig = new ServiceConfig();
@@ -78,7 +83,9 @@ public abstract class GenericTest {
         serviceConfig.setService(service);
         serviceConfig.setAddress(serviceJson.get("address").getAsString());
         serviceConfig.setPort(serviceJson.get("port").getAsString());
+        serviceConfig.setMailDevUrl(serviceJson.get("mailDevUrl").getAsString());
         serviceConfig.setDbConfig(dbConfig);
+        serviceConfig.setRegistrationDbConfig(registrationDbConfig);
 
         return serviceConfig;
     }
@@ -99,6 +106,14 @@ public abstract class GenericTest {
             HttpRequest request = buildGetRequest(url, attrs);
             return performHttp(client, request, expectedCode);
         }
+    }
+
+    protected String performHttpPost(String endpoint, Object body, Map<String, String> attrs) throws Exception {
+        return performHttpPost(endpoint, gson.toJson(body), attrs);
+    }
+
+    protected String performHttpPost(String endpoint, Object body, Map<String, String> attrs, int expectedCode) throws Exception {
+        return performHttpPost(endpoint, gson.toJson(body), attrs, expectedCode);
     }
 
     protected String performHttpPost(String endpoint, String body, Map<String, String> attrs) throws Exception {
@@ -167,6 +182,14 @@ public abstract class GenericTest {
         attrs.put("Authorization", "Bearer " + auth.getToken());
     }
 
+    protected void addCookieToAttrs(Map<String, String> cookies, Map<String, String> attrs) {
+        List<String> cookieValues = new ArrayList<>();
+        for (Map.Entry<String, String> cookie : cookies.entrySet()) {
+            cookieValues.add(cookie.getKey() + "=" + cookie.getValue());
+        }
+        attrs.put("Cookie", String.join("; ", cookieValues));
+    }
+
     private String performHttp(HttpClient client, HttpRequest request) throws Exception {
         return performHttp(client, request, 200);
     }
@@ -218,9 +241,131 @@ public abstract class GenericTest {
 
         String response = performHttpPost("/api/v1/users/auth/register", body, getDefaultAttrs(), expectedCode);
 
-        auth = gson.fromJson(response, AuthenticationResponse.class);
+        emailTokenOptions = gson.fromJson(response, EmailTokenOptions.class);
 
+        String confirmationToken = getConfirmationTokenFromDb(username);
+
+        return confirmEmail(confirmationToken, 200);
+    }
+
+    protected String getConfirmationTokenFromDb(String username) {
+        String query =
+                 """
+                 SELECT t.token FROM token t
+                 JOIN my_user u on t.user_id = u.id
+                 WHERE u.username = '%s'
+                 """.formatted(username);
+        List<Row> rows = executeQuery(query, config.getRegistrationDbConfig());
+        assertEquals(rows.size(), 1);
+
+        return rows.getFirst().get("token");
+    }
+
+    protected AuthenticationResponse confirmEmail(String confirmationToken, int expectedCode) throws Exception {
+        String body = objToJson(Map.of("confirmationToken", confirmationToken));
+        String response = performHttpPost("/api/v1/users/auth/email-confirmation", body, getDefaultAttrs(), expectedCode);
+        auth = gson.fromJson(response, AuthenticationResponse.class);
         return auth;
+    }
+
+    protected String getConfirmationTokenFromEmail(String email) throws Exception {
+        int maxAttempts = 5;
+
+        while (maxAttempts != 0) {
+            List<Email> emails = getEmails();
+
+            for (Email emailObj : emails) {
+                if (emailObj.getTo() != null && !emailObj.getTo().isEmpty()) {
+                    for (Address recipient : emailObj.getTo()) {
+                        if (recipient.getAddress().equals(email)) {
+                            String confirmationToken = extractConfirmationToken(emailObj.getHtml());
+                            if (confirmationToken != null) {
+                                return confirmationToken;
+                            }
+                        }
+                    }
+                }
+            }
+
+            sleep(2000);
+
+            maxAttempts--;
+        }
+
+        throw new RuntimeException("No confirmation token found for email: " + email);
+    }
+
+    protected void findConfirmationTokenEmailsAmount(String email, int expectedAmount) throws Exception {
+        int maxAttempts = 5;
+
+        while (maxAttempts != 0) {
+            List<Email> emails = getEmails();
+            int amount = 0;
+
+            for (Email emailObj : emails) {
+                if (emailObj.getTo() != null && !emailObj.getTo().isEmpty()) {
+                    for (Address recipient : emailObj.getTo()) {
+                        if (recipient.getAddress().equals(email)) {
+                            String confirmationToken = extractConfirmationToken(emailObj.getHtml());
+                            if (confirmationToken != null) {
+                                amount++;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (amount == expectedAmount) {
+                log.info("Found {} emails", amount);
+                return;
+            } else {
+                log.warn("Found {} emails, expected {}", amount, expectedAmount);
+            }
+
+            sleep(2000);
+
+            maxAttempts--;
+        }
+
+        throw new RuntimeException(expectedAmount + " emails not found");
+    }
+
+    private List<Email> getEmails() throws Exception {
+        log.info("Getting emails");
+
+        URL url = new URL(config.getMailDevUrl());
+
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+
+        int responseCode = connection.getResponseCode();
+        System.out.println("Response Code: " + responseCode);
+
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            String inputLine;
+            StringBuilder response = new StringBuilder();
+
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+            in.close();
+
+            return Arrays.asList(gson.fromJson(response.toString(), Email[].class));
+        } else {
+            throw new RuntimeException("Failed to retrieve emails. Response Code: " + responseCode);
+        }
+    }
+
+    private String extractConfirmationToken(String html) {
+        String regex = "confirmationToken=([a-fA-F0-9-]+)";
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(html);
+
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return null;
     }
 
     protected String generateRandomUsername() {
@@ -284,11 +429,11 @@ public abstract class GenericTest {
         return responses;
     }
 
-    private Connection getConnection(ServiceConfig config) throws SQLException {
+    private Connection getConnection(DbConfig config) throws SQLException {
         return DriverManager.getConnection(
-                config.getDbConfig().getUrl(),
-                config.getDbConfig().getUser(),
-                config.getDbConfig().getPassword()
+                config.getUrl(),
+                config.getUser(),
+                config.getPassword()
         );
     }
 
@@ -301,15 +446,15 @@ public abstract class GenericTest {
     }
 
     protected List<Row> executeQuery(String query) {
-        return executeQuery(query, config);
+        return executeQuery(query, config.getDbConfig());
     }
 
-    private List<Row> executeQuery(String query, ServiceConfig config) {
+    private List<Row> executeQuery(String query, DbConfig dbConfig) {
         List<Row> rows = new ArrayList<>();
 
         log.info("Execute query {}", query);
 
-        try (Connection connection = getConnection(config);
+        try (Connection connection = getConnection(dbConfig);
              Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(query)) {
 
@@ -335,10 +480,10 @@ public abstract class GenericTest {
     }
 
     protected void executeUpdate(String query) {
-        executeUpdate(query, config);
+        executeUpdate(query, config.getDbConfig());
     }
 
-    private void executeUpdate(String query, ServiceConfig config) {
+    private void executeUpdate(String query, DbConfig config) {
         log.info("Execute update {}", query);
 
         try (Connection connection = getConnection(config);
@@ -351,10 +496,26 @@ public abstract class GenericTest {
         }
     }
 
+    protected void executeInsert(String query) {
+        executeInsert(query, config.getDbConfig());
+    }
+
+    private void executeInsert(String query, DbConfig config) {
+        log.info("Execute insert {}", query);
+
+        try (Connection connection = getConnection(config);
+             Statement statement = connection.createStatement()) {
+
+            int affectedRows = statement.executeUpdate(query);
+            assertEquals(affectedRows, 1);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
     protected Long getUserId(String username) {
-        ServiceConfig userServiceConfig = loadServiceConfig(Service.USER);
         String query = "SELECT * FROM my_user u WHERE u.username = '%s'".formatted(username);
-        List<Row> row = executeQuery(query, userServiceConfig);
+        List<Row> row = executeQuery(query, config.getRegistrationDbConfig());
         assertEquals(row.size(), 1);
         return row.getFirst().getLong("id");
     }

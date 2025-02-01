@@ -1,11 +1,6 @@
 {
+  "name": "Test User",
   "username": "${username}",
   "password": "${password}",
-  "firstname": "Test",
-  "lastname": "User",
-  "email": "${email}",
-  "country": {
-    "code": "EST",
-    "name": "Estonia"
-  }
+  "email": "${email}"
 }
