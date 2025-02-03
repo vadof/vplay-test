@@ -40,6 +40,10 @@ public class Response {
         return null;
     }
 
+    public boolean contains(String key) {
+        return fields.get(key) != null;
+    }
+
     public Boolean getBoolean(String key) {
         Object v = fields.get(key);
         if (v != null) {

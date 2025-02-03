@@ -40,6 +40,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -55,6 +56,8 @@ public abstract class GenericTest {
     protected EmailTokenOptions emailTokenOptions;
     protected AuthenticationResponse auth;
     protected AuthenticationResponse adminAuth;
+    protected final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    protected final String CHARACTERS_WITH_NUMBERS = CHARACTERS + "0123456789";
 
     protected void init(Service service) {
         log.info("Use {} service config", service);
@@ -371,6 +374,19 @@ public abstract class GenericTest {
     protected String generateRandomUsername() {
         int randomInt = (int) (Math.random() * 10_000_000);
         return "it_user_" + randomInt;
+    }
+
+    protected String generateRandomString(int length, String characters) {
+        Random random = new Random();
+
+        StringBuilder sb = new StringBuilder(length);
+
+        for (int j = 0; j < length; j++) {
+            int index = random.nextInt(characters.length());
+            sb.append(characters.charAt(index));
+        }
+
+        return sb.toString();
     }
 
     protected AuthenticationResponse authorizeUser(String username) throws Exception {

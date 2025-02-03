@@ -74,14 +74,41 @@ public class AuthenticationTests extends GenericTest {
 
     }
 
-    @Test(description = "Create user bad username")
-    void testCreateUserBadUsername() throws Exception {
+    @Test(description = "Create user bad username symbols")
+    void testCreateUserBadUsernameSymbols() throws Exception {
         String invalidSymbols = "!@#$%^&*()+-=[]{}'|.>,</?`~л ";
 
         String username = "username";
         for (Character symbol : invalidSymbols.toCharArray()) {
             registerUser(symbol + username, null, null, 400);
         }
+    }
+
+    @Test(description = "Create user bad username length")
+    void testCreateUserBadUsernameLength() throws Exception {
+        registerUserWithFixedUsernameLength(17);
+        registerUserWithFixedUsernameLength(1);
+    }
+
+    private void registerUserWithFixedUsernameLength(int length) throws Exception {
+        for (int i = 0; i < 3; i++) {
+            String username = generateRandomString(length, CHARACTERS_WITH_NUMBERS);
+            registerUser(username, null, null, 400);
+        }
+    }
+
+    @Test(description = "Create user bad name length")
+    void testCreateUserBadNameLength() throws Exception {
+        String username = generateRandomUsername();
+        String name = generateRandomString(101, CHARACTERS);
+
+        User user = new User(name, username, username + "@test.com", "test1234");
+
+        String res = performHttpPost("/api/v1/users/auth/register", gson.toJson(user), getDefaultAttrs(), 400);
+        Response response = jsonToObject(res);
+
+        Response errors = response.getObject("errors");
+        assertTrue(errors != null && errors.contains("name"));
     }
 
     @Test(description = "Confirm an email")
