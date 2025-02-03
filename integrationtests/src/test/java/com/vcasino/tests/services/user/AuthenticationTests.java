@@ -207,6 +207,25 @@ public class AuthenticationTests extends GenericTest {
         Response response = jsonToObject(responseStr);
 
         assertNotNull(response.get("token"));
+        assertEquals(refreshToken, response.get("refreshToken"));
+    }
+
+    @Test(description = "Refresh authorization token also renews refreshToken if expiration is less than 2 hours")
+    void testRefreshTokenAlsoRenewsRefreshToken() throws Exception {
+        AuthenticationResponse registerResponse = createNewUser();
+        String refreshToken = registerResponse.getRefreshToken();
+
+        String query = "UPDATE token SET expiry_date = '%s' WHERE token = '%s'".formatted(
+                Timestamp.from(Instant.now().minusSeconds(60 * 90)), refreshToken);
+        executeUpdate(query);
+
+        String body = "{\"refreshToken\":\"" + refreshToken + "\"}";
+
+        String responseStr = performHttpPost("/api/v1/users/auth/refreshToken", body, getDefaultAttrs());
+        Response response = jsonToObject(responseStr);
+
+        assertNotNull(response.get("token"));
+        assertNotEquals(response.get("refreshToken"), refreshToken);
     }
 
     @Test(description = "Only admin can register another admin")
