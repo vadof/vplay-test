@@ -373,6 +373,20 @@ public class AuthenticationTests extends GenericTest {
         performHttpPost("/api/v1/users/auth/username-confirmation", body, attrs, 400);
     }
 
+    @Test(description = "Confirm username after OAuth2 registration, bad username length")
+    void testConfirmUsernameAfterOAuthRegistrationBadUsernameLength() throws Exception {
+        OAuth2Mock oAuth2Mock = mockOauth2Registration();
+
+        Map<String, String> attrs = getDefaultAttrs();
+        addCookieToAttrs(Map.of("confirmationToken", oAuth2Mock.getConfirmationToken()), attrs);
+
+        String body = objToJson(Map.of("username", generateRandomString(17, CHARACTERS_WITH_NUMBERS)));
+        performHttpPost("/api/v1/users/auth/username-confirmation", body, attrs, 400);
+
+        body = objToJson(Map.of("username", generateRandomString(1, CHARACTERS_WITH_NUMBERS)));
+        performHttpPost("/api/v1/users/auth/username-confirmation", body, attrs, 400);
+    }
+
     private OAuth2Mock mockOauth2Registration() {
         String username = generateRandomUsername();
         String email = username + "@gmail.com";
