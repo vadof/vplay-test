@@ -20,8 +20,7 @@ import org.testng.annotations.Test;
 
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -166,7 +165,7 @@ public class AuthenticationTests extends GenericTest {
         Row row = executeQuery(emailResendOptionsQuery).getFirst();
         Map<String, Object> options = fromJson(row.get("options"), Map.class);
 
-        options.put("sentAt", LocalDateTime.now(ZoneOffset.UTC).minusMinutes(10) + "Z");
+        options.put("sentAt", Instant.now().minusSeconds(60 * 10).truncatedTo(ChronoUnit.SECONDS).toString());
         String updatedOptions = gson.toJson(options);
 
         String updateOptionsQuery = "UPDATE token SET options = '%s' WHERE token = '%s'".formatted(updatedOptions, token);
@@ -180,7 +179,7 @@ public class AuthenticationTests extends GenericTest {
         String confirmationToken = getConfirmationTokenFromEmail(response.getUser().getEmail());
 
         String query = "UPDATE token SET expiry_date = '%s' WHERE token = '%s'".formatted(
-                Timestamp.from(Instant.now().minusSeconds(60 * 60 * 24)), confirmationToken);
+                Timestamp.from(Instant.now().minusSeconds(60 * 60 * 24).truncatedTo(ChronoUnit.SECONDS)), confirmationToken);
         executeUpdate(query);
 
         confirmEmail(confirmationToken, 401);
@@ -243,7 +242,7 @@ public class AuthenticationTests extends GenericTest {
         String refreshToken = registerResponse.getRefreshToken();
 
         String query = "UPDATE token SET expiry_date = '%s' WHERE token = '%s'".formatted(
-                Timestamp.from(Instant.now().minusSeconds(60 * 90)), refreshToken);
+                Timestamp.from(Instant.now().minusSeconds(60 * 90).truncatedTo(ChronoUnit.SECONDS)), refreshToken);
         executeUpdate(query);
 
         String body = "{\"refreshToken\":\"" + refreshToken + "\"}";
@@ -390,7 +389,7 @@ public class AuthenticationTests extends GenericTest {
     private OAuth2Mock mockOauth2Registration() {
         String username = generateRandomUsername();
         String email = username + "@gmail.com";
-        LocalDateTime registerDate = LocalDateTime.now(ZoneOffset.UTC);
+        Instant registerDate = Instant.now();
         Random random = new Random();
         StringBuilder oauthProviderId = new StringBuilder(20);
         for (int i = 0; i < 20; i++) {
@@ -410,7 +409,7 @@ public class AuthenticationTests extends GenericTest {
         String tokenQuery = """
                 INSERT INTO token (user_id, token, expiry_date, type)
                 VALUES (%s, '%s', '%s', 'USERNAME_CONFIRMATION')
-                """.formatted(userId, confirmationToken, registerDate.plusHours(1));
+                """.formatted(userId, confirmationToken, registerDate.plusSeconds(60 * 60));
 
         executeInsert(tokenQuery);
 
