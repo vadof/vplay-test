@@ -36,7 +36,7 @@ public class AccountTests extends GenericClickerTest {
     void testCreateClickerAccountTest() throws Exception {
         Account account = createAccount();
 
-        compareWithDatabase(account);
+        compareWithDatabase(account, authenticatedUser.getUser().getUsername());
         validateSectionUpgrades(account.getSectionUpgrades());
     }
 
@@ -94,13 +94,14 @@ public class AccountTests extends GenericClickerTest {
         assertEquals(account.getLevel(), 2);
     }
 
-    private void compareWithDatabase(Account account) {
+    private void compareWithDatabase(Account account, String username) {
         log.info("Compare response with database record");
 
         Row row = getAccountFromDatabase();
         assertEquals(row.getInt("level"), account.getLevel());
         Row level = getLevelFromDatabase(account.getLevel());
         assertNotNull(row.getLong("id"));
+        assertEquals(row.get("username"), username);
         assertEquals(row.getBigDecimal("net_worth"), account.getNetWorth());
         assertEquals(row.getBigDecimal("balance_coins"), account.getBalanceCoins());
         assertEquals(row.getInt("available_taps"), account.getAvailableTaps());
