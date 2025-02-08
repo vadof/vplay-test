@@ -4,7 +4,7 @@ import com.vcasino.tests.common.Service;
 import com.vcasino.tests.model.Response;
 import com.vcasino.tests.model.Row;
 import com.vcasino.tests.services.clicker.model.Account;
-import com.vcasino.tests.services.clicker.model.streak.DayReward;
+import com.vcasino.tests.services.clicker.model.streak.DailyReward;
 import com.vcasino.tests.services.clicker.model.streak.StreakInfo;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,7 +29,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 @Slf4j
-public class RewardsTest extends GenericClickerTest {
+public class TasksTest extends GenericClickerTest {
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
     private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
 
@@ -40,7 +40,7 @@ public class RewardsTest extends GenericClickerTest {
         authorizeAdmin();
     }
 
-    @Test(description = "Get rewards info")
+    @Test(description = "Get streak info")
     void testGetStreakInfo() throws Exception {
         createAccount();
         StreakInfo streakInfo = getStreakInfo();
@@ -48,10 +48,10 @@ public class RewardsTest extends GenericClickerTest {
         assertEquals(streakInfo.getState().getDay(), 1);
         assertTrue(streakInfo.getState().getAvailable());
 
-        List<DayReward> rewards = streakInfo.getRewardsByDays();
-        DayReward lastReward = null;
+        List<DailyReward> rewards = streakInfo.getRewardsByDays();
+        DailyReward lastReward = null;
         for (int i = 0; i < rewards.size(); i++) {
-            DayReward reward = rewards.get(i);
+            DailyReward reward = rewards.get(i);
             assertEquals(reward.getDay(), i + 1);
             if (i != 0) {
                 assertTrue(lastReward.getReward() < reward.getReward(),
@@ -74,7 +74,7 @@ public class RewardsTest extends GenericClickerTest {
         assertEquals(streakInfo.getState().getDay(), 1);
         assertFalse(streakInfo.getState().getAvailable());
 
-        performHttpPost(buildUrl("/rewards/streaks"), null, getAttrsWithAuthorization(), 400);
+        performHttpPost(buildUrl("/tasks/streaks"), null, getAttrsWithAuthorization(), 400);
     }
 
     @Test(description = "Receive all streak reward")
@@ -82,7 +82,7 @@ public class RewardsTest extends GenericClickerTest {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         createAccount();
         StreakInfo streakInfo = getStreakInfo();
-        List<DayReward> rewards = streakInfo.getRewardsByDays();
+        List<DailyReward> rewards = streakInfo.getRewardsByDays();
 
         Account account;
         long expectedRewardSum = 0;
@@ -104,7 +104,7 @@ public class RewardsTest extends GenericClickerTest {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         createAccount();
         StreakInfo streakInfo = getStreakInfo();
-        List<DayReward> rewards = streakInfo.getRewardsByDays();
+        List<DailyReward> rewards = streakInfo.getRewardsByDays();
 
         Account account = null;
         for (int i = 0; i < rewards.size(); i++) {
@@ -135,7 +135,7 @@ public class RewardsTest extends GenericClickerTest {
 
     @Test(description = "Get video properties")
     void testGetVideoProperties() throws Exception {
-        String s = performHttpGet(buildUrl("/admin/rewards/properties"), getAttrsWithAuthorization(true), 200);
+        String s = performHttpGet(buildUrl("/admin/tasks/properties"), getAttrsWithAuthorization(true), 200);
         Map<String, List<String>> properties = fromJson(s, Map.class);
 
         assertTrue(properties.containsKey("Watch"));
@@ -149,65 +149,65 @@ public class RewardsTest extends GenericClickerTest {
         assertTrue(properties.get("Subscribe").contains("Telegram"));
     }
 
-    @Test(description = "Add youtube watch reward")
-    void testAddYoutubeWatchReward() throws Exception {
+    @Test(description = "Add youtube watch task")
+    void testAddYoutubeWatchTask() throws Exception {
         String id = "jNQXAC9IVRw";
-        String rewardType = "watch";
+        String taskType = "watch";
         String service = "youtube";
 
-        AddRewardRequest request = sendAddRewardRequest(id, rewardType, service, 200);
+        AddTaskRequest request = sendAddTaskRequest(id, taskType, service, 200);
         validateRewardInDatabase("https://www.youtube.com/watch?v=" + request.getId(), request, 19);
     }
 
-    @Test(description = "Add youtube subscribe reward")
+    @Test(description = "Add youtube subscribe task")
     void testAddYoutubeSubscribeReward() throws Exception {
         String id = "jawed";
-        String rewardType = "subscribe";
+        String taskType = "subscribe";
         String service = "youtube";
 
-        AddRewardRequest request = sendAddRewardRequest(id, rewardType, service, 200);
+        AddTaskRequest request = sendAddTaskRequest(id, taskType, service, 200);
         validateRewardInDatabase("https://www.youtube.com/@" + request.getId(), request, null);
     }
 
-    @Test(description = "Add telegram subscribe reward")
+    @Test(description = "Add telegram subscribe task")
     void testAddTelegramSubscribeReward() throws Exception {
-        String rewardType = "subscribe";
+        String taskType = "subscribe";
         String service = "Telegram";
 
-        AddRewardRequest request = sendAddRewardRequest(rewardType, service, 200);
+        AddTaskRequest request = sendAddTaskRequest(taskType, service, 200);
 
         validateRewardInDatabase("https://t.me/" + request.getId(), request, null);
     }
 
-    @Test(description = "Try to add telegram watch reward")
+    @Test(description = "Try to add telegram watch task")
     void testTryAddTelegramWatchReward() throws Exception {
-        String rewardType = "watch";
+        String taskType = "watch";
         String service = "Telegram";
 
-        sendAddRewardRequest(rewardType, service, 400);
+        sendAddTaskRequest(taskType, service, 400);
     }
 
-    @Test(description = "Get reward info")
-    void testGetRewards() throws Exception {
+    @Test(description = "Get task info")
+    void testGetTasks() throws Exception {
         createAccount();
         List<String> links = List.of("https://www.youtube.com/@jawed", "https://t.me/vclicker", "https://www.youtube.com/watch?v=jNQXAC9IVRw");
 
-        List<AddRewardRequest> requests = List.of(
-                sendAddRewardRequest("jawed", "Subscribe", "YouTube", 200),
-                sendAddRewardRequest("vclicker", "Subscribe", "Telegram", 200),
-                sendAddRewardRequest("jNQXAC9IVRw", "Watch", "YouTube", 200)
+        List<AddTaskRequest> requests = List.of(
+                sendAddTaskRequest("jawed", "Subscribe", "YouTube", 200),
+                sendAddTaskRequest("vclicker", "Subscribe", "Telegram", 200),
+                sendAddTaskRequest("jNQXAC9IVRw", "Watch", "YouTube", 200)
         );
 
-        String s = performHttpGet(buildUrl("/rewards"), getAttrsWithAuthorization(), 200);
+        String s = performHttpGet(buildUrl("/tasks"), getAttrsWithAuthorization(), 200);
         List<Response> responses = jsonToListObjects(s);
         int found = 0;
         for (Response response : responses) {
             for (int i = 0; i < requests.size(); i++) {
-                AddRewardRequest request = requests.get(i);
-                if (request.getRewardName().equals(response.get("name"))) {
+                AddTaskRequest request = requests.get(i);
+                if (request.getTaskName().equals(response.get("name"))) {
                     assertFalse(response.getBoolean("received"));
                     assertEquals(response.get("link"), links.get(i));
-                    assertEquals(response.get("type"), request.getRewardType());
+                    assertEquals(response.get("type"), request.getTaskType());
                     assertEquals(response.get("service"), request.getService());
                     found++;
                     break;
@@ -218,17 +218,17 @@ public class RewardsTest extends GenericClickerTest {
         assertEquals(found, 3);
     }
 
-    @Test(description = "Get rewards, yesterday's reward is not visible")
-    void testGetRewardsNotVisible() throws Exception {
+    @Test(description = "Get tasks, yesterday's task is not visible")
+    void testGetTasksNotVisible() throws Exception {
         createAccount();
         LocalDateTime start = LocalDateTime.now().minusDays(1);
-        AddRewardRequest request = sendAddRewardRequest("jawed", "Subscribe", "YouTube", 200, start);
+        AddTaskRequest request = sendAddTaskRequest("jawed", "Subscribe", "YouTube", 200, start);
 
-        String s = performHttpGet(buildUrl("/rewards"), getAttrsWithAuthorization(), 200);
+        String s = performHttpGet(buildUrl("/tasks"), getAttrsWithAuthorization(), 200);
         List<Response> responses = jsonToListObjects(s);
         boolean found = false;
         for (Response response : responses) {
-            if (response.get("name").equals(request.getRewardName())) {
+            if (response.get("name").equals(request.getTaskName())) {
                 found = true;
                 break;
             }
@@ -237,141 +237,141 @@ public class RewardsTest extends GenericClickerTest {
         assertFalse(found);
     }
 
-    @Test(description = "Receive reward")
-    void testReceiveReward() throws Exception {
+    @Test(description = "Receive task reward")
+    void testReceiveTaskReward() throws Exception {
         Account account = createAccount();
-        AddRewardRequest request = sendAddRewardRequest("jNQXAC9IVRw", "Watch", "YouTube", 200);
+        AddTaskRequest request = sendAddTaskRequest("jNQXAC9IVRw", "Watch", "YouTube", 200);
 
-        int rewardId = getRewardIdByName(request.getRewardName());
-        changeRewardDuration(rewardId, 10);
+        int taskId = getTaskIdByName(request.getTaskName());
+        changeTaskDuration(taskId, 10);
 
         LocalDateTime clickTime = LocalDateTime.now().minusSeconds(10);
-        Account updatedAccount = receiveReward(rewardId, clickTime, 200);
+        Account updatedAccount = receiveTaskReward(taskId, clickTime, 200);
 
         assertEquals(updatedAccount.getBalanceCoins().intValue(),
                 account.getBalanceCoins().intValue() + request.getRewardCoins());
     }
 
-    @Test(description = "Receive reward twice")
-    void testReceiveRewardTwice() throws Exception {
+    @Test(description = "Receive task reward twice")
+    void testReceiveTaskRewardTwice() throws Exception {
         createAccount();
-        AddRewardRequest request = sendAddRewardRequest("jNQXAC9IVRw", "Watch", "YouTube", 200);
+        AddTaskRequest request = sendAddTaskRequest("jNQXAC9IVRw", "Watch", "YouTube", 200);
 
-        int rewardId = getRewardIdByName(request.getRewardName());
-        changeRewardDuration(rewardId, 10);
+        int taskId = getTaskIdByName(request.getTaskName());
+        changeTaskDuration(taskId, 10);
 
         LocalDateTime clickTime = LocalDateTime.now().minusSeconds(10);
-        receiveReward(rewardId, clickTime, 200);
-        receiveReward(rewardId, clickTime, 400);
+        receiveTaskReward(taskId, clickTime, 200);
+        receiveTaskReward(taskId, clickTime, 400);
     }
 
-    @Test(description = "Receive reward with wrong id")
-    void testReceiveRewardWrongId() throws Exception {
+    @Test(description = "Receive task reward with wrong id")
+    void testReceiveTaskRewardWrongId() throws Exception {
         createAccount();
-        AddRewardRequest request = sendAddRewardRequest("jNQXAC9IVRw", "Watch", "YouTube", 200);
+        AddTaskRequest request = sendAddTaskRequest("jNQXAC9IVRw", "Watch", "YouTube", 200);
 
-        int rewardId = getRewardIdByName(request.getRewardName()) + 976;
+        int taskId = getTaskIdByName(request.getTaskName()) + 976;
 
         LocalDateTime clickTime = LocalDateTime.now();
-        receiveReward(rewardId, clickTime, 403);
+        receiveTaskReward(taskId, clickTime, 403);
     }
 
-    @Test(description = "Receive reward - click before reward appeared")
-    void testReceiveRewardBeforeItHasAppeared() throws Exception {
+    @Test(description = "Receive task reward - click before task appeared")
+    void testReceiveTaskRewardBeforeItHasAppeared() throws Exception {
         createAccount();
         LocalDateTime start = LocalDateTime.now().plusDays(1);
-        AddRewardRequest request = sendAddRewardRequest("jNQXAC9IVRw", "Watch", "YouTube",
+        AddTaskRequest request = sendAddTaskRequest("jNQXAC9IVRw", "Watch", "YouTube",
                 200, start);
 
-        int rewardId = getRewardIdByName(request.getRewardName());
-        changeRewardDuration(rewardId, 10);
+        int taskId = getTaskIdByName(request.getTaskName());
+        changeTaskDuration(taskId, 10);
 
         LocalDateTime clickTime = LocalDateTime.now().minusSeconds(15);
-        receiveReward(rewardId, clickTime, 400);
+        receiveTaskReward(taskId, clickTime, 400);
     }
 
-    @Test(description = "Receive reward - click after reward expired")
-    void testReceiveRewardAfterRewardExpired() throws Exception {
+    @Test(description = "Receive task reward - click after task expired")
+    void testReceiveTaskRewardAfterRewardExpired() throws Exception {
         createAccount();
         LocalDateTime start = LocalDateTime.now().minusDays(1);
-        AddRewardRequest request = sendAddRewardRequest("jNQXAC9IVRw", "Watch", "YouTube",
+        AddTaskRequest request = sendAddTaskRequest("jNQXAC9IVRw", "Watch", "YouTube",
                 200, start);
 
-        int rewardId = getRewardIdByName(request.getRewardName());
-        changeRewardDuration(rewardId, 10);
+        int taskId = getTaskIdByName(request.getTaskName());
+        changeTaskDuration(taskId, 10);
 
         LocalDateTime clickTime = request.getEnd();
-        receiveReward(rewardId, clickTime, 400);
+        receiveTaskReward(taskId, clickTime, 400);
     }
 
-    @Test(description = "Receive reward - click before current date")
-    void testReceiveRewardClickBeforeCurrentDate() throws Exception {
+    @Test(description = "Receive task reward - click before current date")
+    void testReceiveTaskRewardClickBeforeCurrentDate() throws Exception {
         createAccount();
         LocalDateTime now = LocalDateTime.now();
-        AddRewardRequest request = sendAddRewardRequest("jNQXAC9IVRw", "Watch", "YouTube",
+        AddTaskRequest request = sendAddTaskRequest("jNQXAC9IVRw", "Watch", "YouTube",
                 200, now);
 
-        int rewardId = getRewardIdByName(request.getRewardName());
-        changeRewardDuration(rewardId, 10);
+        int taskId = getTaskIdByName(request.getTaskName());
+        changeTaskDuration(taskId, 10);
 
         LocalDateTime clickTime = now.plusMinutes(1);
-        receiveReward(rewardId, clickTime, 400);
+        receiveTaskReward(taskId, clickTime, 400);
     }
 
-    @Test(description = "Receive reward - click was a day ago")
-    void testReceiveRewardClickADayAgo() throws Exception {
+    @Test(description = "Receive task reward - click was a day ago")
+    void testReceiveTaskRewardClickADayAgo() throws Exception {
         createAccount();
         LocalDateTime start = LocalDateTime.now().minusDays(1);
-        AddRewardRequest request = sendAddRewardRequest("jNQXAC9IVRw", "Watch", "YouTube",
+        AddTaskRequest request = sendAddTaskRequest("jNQXAC9IVRw", "Watch", "YouTube",
                 200, start);
 
-        int rewardId = getRewardIdByName(request.getRewardName());
-        changeRewardDuration(rewardId, 10);
+        int taskId = getTaskIdByName(request.getTaskName());
+        changeTaskDuration(taskId, 10);
 
         LocalDateTime clickTime = request.getStart().plusMinutes(1);
-        receiveReward(rewardId, clickTime, 400);
+        receiveTaskReward(taskId, clickTime, 400);
     }
 
-    @Test(description = "Receive reward without watching video")
-    void testReceiveRewardWithoutWatchingVideo() throws Exception {
+    @Test(description = "Receive task reward without watching video")
+    void testReceiveTaskRewardWithoutWatchingVideo() throws Exception {
         createAccount();
-        AddRewardRequest request = sendAddRewardRequest("jNQXAC9IVRw", "Watch", "YouTube",
+        AddTaskRequest request = sendAddTaskRequest("jNQXAC9IVRw", "Watch", "YouTube",
                 200);
 
-        int rewardId = getRewardIdByName(request.getRewardName());
-        changeRewardDuration(rewardId, 120);
+        int taskId = getTaskIdByName(request.getTaskName());
+        changeTaskDuration(taskId, 120);
 
         LocalDateTime clickTime = LocalDateTime.now();
-        receiveReward(rewardId, clickTime, 400);
+        receiveTaskReward(taskId, clickTime, 400);
         clickTime = clickTime.minusMinutes(1);
-        receiveReward(rewardId, clickTime, 400);
+        receiveTaskReward(taskId, clickTime, 400);
     }
 
-    private Account receiveReward(Integer rewardId, LocalDateTime clickTime, int expectedCode) throws Exception {
-        String body = objToJson(Map.of("rewardId", String.valueOf(rewardId), "clickTime", clickTime.format(dateTimeFormatter)));
-        String s = performHttpPost(buildUrl("/rewards"), body, getAttrsWithAuthorization(), expectedCode);
+    private Account receiveTaskReward(Integer taskId, LocalDateTime clickTime, int expectedCode) throws Exception {
+        String body = objToJson(Map.of("taskId", String.valueOf(taskId), "clickTime", clickTime.format(dateTimeFormatter)));
+        String s = performHttpPost(buildUrl("/tasks"), body, getAttrsWithAuthorization(), expectedCode);
         return toAccount(s);
     }
 
-    private int getRewardIdByName(String rewardName) {
-        String query = "SELECT r.id FROM reward r WHERE r.name = '%s'".formatted(rewardName);
+    private int getTaskIdByName(String taskName) {
+        String query = "SELECT t.id FROM task t WHERE t.name = '%s'".formatted(taskName);
         List<Row> rows = executeQuery(query);
         assertEquals(rows.size(), 1);
         return rows.getFirst().getInt("id");
     }
 
-    private void changeRewardDuration(int rewardId, Integer duration) {
-        String query = "UPDATE reward SET duration_seconds = %s WHERE id = %s".formatted(duration, rewardId);
+    private void changeTaskDuration(int taskId, Integer duration) {
+        String query = "UPDATE task SET duration_seconds = %s WHERE id = %s".formatted(duration, taskId);
         executeUpdate(query);
     }
 
-    private void validateRewardInDatabase(String expectedLink, AddRewardRequest request, Integer duration) {
-        String query = "SELECT * FROM reward r WHERE r.name = '%s'".formatted(request.getRewardName());
+    private void validateRewardInDatabase(String expectedLink, AddTaskRequest request, Integer duration) {
+        String query = "SELECT * FROM task t WHERE t.name = '%s'".formatted(request.getTaskName());
         List<Row> rows = executeQuery(query);
         assertEquals(1, rows.size());
         Row row = rows.getFirst();
 
-        assertEquals(row.get("type"), request.getRewardType().toUpperCase());
+        assertEquals(row.get("type"), request.getTaskType().toUpperCase());
         assertEquals(row.get("link"), expectedLink);
 
         if (duration != null) {
@@ -388,7 +388,7 @@ public class RewardsTest extends GenericClickerTest {
 
 
     private VideoInfo getVideoInfo(String videoId, String service, int expectedCode) throws Exception {
-        String url = buildUrl("/admin/rewards/video-info", "videoId", videoId, "service", service);
+        String url = buildUrl("/admin/tasks/video-info", "videoId", videoId, "service", service);
 
         if (expectedCode != 200) {
             performHttpGet(url, getAttrsWithAuthorization(true), expectedCode);
@@ -400,17 +400,17 @@ public class RewardsTest extends GenericClickerTest {
         }
     }
 
-    private AddRewardRequest sendAddRewardRequest(String rewardType, String service, int expectedCode) throws Exception {
-        return sendAddRewardRequest("vclicker", rewardType, service, expectedCode);
+    private AddTaskRequest sendAddTaskRequest(String taskType, String service, int expectedCode) throws Exception {
+        return sendAddTaskRequest("vclicker", taskType, service, expectedCode);
     }
 
-    private AddRewardRequest sendAddRewardRequest(String id, String rewardType, String service, int expectedCode) throws Exception {
-        return sendAddRewardRequest(id, rewardType, service, expectedCode, null);
+    private AddTaskRequest sendAddTaskRequest(String id, String taskType, String service, int expectedCode) throws Exception {
+        return sendAddTaskRequest(id, taskType, service, expectedCode, null);
     }
 
-    private AddRewardRequest sendAddRewardRequest(String id, String rewardType, String service, int expectedCode,
-                                                  LocalDateTime start) throws Exception {
-        log.info("Adding new reward");
+    private AddTaskRequest sendAddTaskRequest(String id, String taskType, String service, int expectedCode,
+                                              LocalDateTime start) throws Exception {
+        log.info("Adding new task");
 
         if (start == null) {
             start = LocalDateTime.now();
@@ -422,17 +422,17 @@ public class RewardsTest extends GenericClickerTest {
 
         String name = "Test_" + (int) (Math.random() * 10_000_000);
 
-        AddRewardRequest body = AddRewardRequest.builder()
+        AddTaskRequest body = AddTaskRequest.builder()
                 .id(id)
-                .rewardType(rewardType)
+                .taskType(taskType)
                 .service(service)
                 .rewardCoins(10000)
-                .rewardName(name)
+                .taskName(name)
                 .start(start)
                 .end(end)
                 .build();
 
-        performHttpPost(buildUrl("/admin/rewards"), body.toString(), getAttrsWithAuthorization(true), expectedCode);
+        performHttpPost(buildUrl("/admin/tasks"), body.toString(), getAttrsWithAuthorization(true), expectedCode);
 
         return body;
     }
@@ -454,12 +454,12 @@ public class RewardsTest extends GenericClickerTest {
     }
 
     private StreakInfo getStreakInfo() throws Exception {
-        String s = performHttpGet(buildUrl("/rewards/streaks"), getAttrsWithAuthorization());
+        String s = performHttpGet(buildUrl("/tasks/streaks"), getAttrsWithAuthorization());
         return gson.fromJson(s, StreakInfo.class);
     }
 
     private Account receiveStreakReward() throws Exception {
-        String s = performHttpPost(buildUrl("/rewards/streaks"), null, getAttrsWithAuthorization());
+        String s = performHttpPost(buildUrl("/tasks/streaks"), null, getAttrsWithAuthorization());
         return toAccount(s);
     }
 
@@ -474,12 +474,12 @@ public class RewardsTest extends GenericClickerTest {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    static class AddRewardRequest {
+    static class AddTaskRequest {
         String id;
-        String rewardType;
+        String taskType;
         String service;
         Integer rewardCoins;
-        String rewardName;
+        String taskName;
         LocalDateTime start;
         LocalDateTime end;
 
@@ -489,16 +489,16 @@ public class RewardsTest extends GenericClickerTest {
             return """
                     {
                         "id": "%s",
-                        "rewardType": "%s",
+                        "taskType": "%s",
                         "service": "%s",
                         "rewardCoins": %s,
-                        "rewardName": "%s",
+                        "taskName": "%s",
                         "dateRange": {
                             "start": "%s",
                             "end": "%s"
                         }
-                    }""".formatted(id, rewardType ,service, rewardCoins,
-                    rewardName, start.format(formatter), end.format(formatter));
+                    }""".formatted(id, taskType,service, rewardCoins,
+                    taskName, start.format(formatter), end.format(formatter));
         }
     }
 
