@@ -89,6 +89,43 @@ public class AuthenticationTests extends GenericTest {
         registerUserWithFixedUsernameLength(1);
     }
 
+    @Test(description = "Register user with referral")
+    void testRegisterUserWithRef() throws Exception {
+        User existingUser = createNewUser().getUser();
+
+        User user = getRandomUser();
+        String body = gson.toJson(user);
+
+        String url = "/api/v1/users/auth/register?ref=" + existingUser.getUsername();
+        performHttpPost(url, body, getDefaultAttrs(), 200);
+
+        checkInvitedByColumnValue(existingUser, user);
+    }
+
+    @Test(description = "Register user with inactive user's referral")
+    void testRegisterUserWithInactiveUserRef() throws Exception {
+        User inactiveUser = registerUser().getUser();
+
+        User user = getRandomUser();
+        String body = gson.toJson(user);
+
+        String url = "/api/v1/users/auth/register?ref=" + inactiveUser.getUsername();
+        performHttpPost(url, body, getDefaultAttrs(), 200);
+
+        checkInvitedByColumnValue(null, user);
+    }
+
+    @Test(description = "Register user random referral")
+    void testRegisterUserWithRandomRef() throws Exception {
+        User user = getRandomUser();
+        String body = gson.toJson(user);
+
+        String url = "/api/v1/users/auth/register?ref=" + generateRandomUsername();
+        performHttpPost(url, body, getDefaultAttrs(), 200);
+
+        checkInvitedByColumnValue(null, user);
+    }
+
     private void registerUserWithFixedUsernameLength(int length) throws Exception {
         for (int i = 0; i < 3; i++) {
             String username = generateRandomString(length, CHARACTERS_WITH_NUMBERS);
@@ -360,6 +397,39 @@ public class AuthenticationTests extends GenericTest {
         assertNotNull(row.getTimestamp("modified_at"));
     }
 
+    @Test(description = "Confirm username after OAuth2 registration with referral")
+    void testConfirmUsernameAfterOAuthRegistrationWithReferral() throws Exception {
+        User existingUser = createNewUser().getUser();
+
+        OAuth2Mock oAuth2Mock = mockOauth2Registration();
+
+        String body = objToJson(Map.of("username", oAuth2Mock.getUsername()));
+        Map<String, String> attrs = getDefaultAttrs();
+        addCookieToAttrs(Map.of(
+                "confirmationToken", oAuth2Mock.getConfirmationToken(),
+                "ref", existingUser.getUsername()
+        ), attrs);
+
+        String response = performHttpPost("/api/v1/users/auth/username-confirmation", body, attrs, 200);
+        User createdUser = gson.fromJson(response, AuthenticationResponse.class).getUser();
+
+        checkInvitedByColumnValue(existingUser, createdUser);
+    }
+
+    private void checkInvitedByColumnValue(User inviter, User createdUser) {
+        String query = "SELECT u.invited_by FROM my_user u WHERE u.username = '%s'".formatted(createdUser.getUsername());
+        List<Row> rows = executeQuery(query);
+        assertEquals(1, rows.size());
+
+        Row row = rows.getFirst();
+
+        if (inviter == null) {
+            assertNull(row.getLong("invited_by"));
+        } else {
+            assertEquals(getUserId(inviter.getUsername()), row.getLong("invited_by"));
+        }
+    }
+
     @Test(description = "Confirm username after OAuth2 registration, username already taken")
     void testConfirmUsernameAfterOAuthRegistrationUsernameAlreadyTaken() throws Exception {
         User existingUser = createNewUser().getUser();
@@ -397,9 +467,9 @@ public class AuthenticationTests extends GenericTest {
         }
 
         String userQuery = """
-                        INSERT INTO my_user (name, email, username, oauth_provider, oauth_provider_id, register_date, role, active, frozen)
-                        VALUES ('Test Oauth2 User', '%s', '%s', 'GOOGLE', '%s', '%s', 'USER', false, false);
-                        """
+                INSERT INTO my_user (name, email, username, oauth_provider, oauth_provider_id, register_date, role, active, frozen)
+                VALUES ('Test Oauth2 User', '%s', '%s', 'GOOGLE', '%s', '%s', 'USER', false, false);
+                """
                 .formatted(email, username, oauthProviderId, registerDate);
 
         executeInsert(userQuery);
@@ -434,6 +504,15 @@ public class AuthenticationTests extends GenericTest {
         String response = performHttpPost("/api/v1/users/auth/register", gson.toJson(user), getDefaultAttrs(), expectedCode);
 
         return new UserRegisterResponse(user, fromJson(response, EmailTokenOptions.class));
+    }
+
+    private User getRandomUser() {
+        String username = generateRandomUsername();
+        String email = username + "@test.com";
+        String password = "test1234";
+        String name = "Test User";
+
+        return new User(name, username, email, password);
     }
 
     private String getAdminBody() throws Exception {
