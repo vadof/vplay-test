@@ -10,7 +10,6 @@ import org.testng.annotations.Test;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.TimeZone;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -21,7 +20,6 @@ public class TapTests extends GenericClickerTest {
     @BeforeTest
     void setup() {
         init(Service.CLICKER);
-        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
     }
 
     @Test(description = "Tap works correctly")

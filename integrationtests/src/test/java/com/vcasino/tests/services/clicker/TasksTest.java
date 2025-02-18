@@ -21,7 +21,6 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -35,7 +34,6 @@ public class TasksTest extends GenericClickerTest {
 
     @BeforeTest
     void setup() throws Exception {
-        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         init(Service.CLICKER);
         authorizeAdmin();
     }
@@ -79,7 +77,6 @@ public class TasksTest extends GenericClickerTest {
 
     @Test(description = "Receive all streak reward")
     void testReceiveAllStreakReward() throws Exception {
-        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         createAccount();
         StreakInfo streakInfo = getStreakInfo();
         List<DailyReward> rewards = streakInfo.getRewardsByDays();
@@ -101,7 +98,6 @@ public class TasksTest extends GenericClickerTest {
 
     @Test(description = "When all streak rewards received, streak resets")
     void testStreakResets() throws Exception {
-        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         createAccount();
         StreakInfo streakInfo = getStreakInfo();
         List<DailyReward> rewards = streakInfo.getRewardsByDays();

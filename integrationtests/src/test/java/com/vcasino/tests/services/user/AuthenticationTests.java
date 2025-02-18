@@ -219,7 +219,7 @@ public class AuthenticationTests extends GenericTest {
                 Timestamp.from(Instant.now().minusSeconds(60 * 60 * 24).truncatedTo(ChronoUnit.SECONDS)), confirmationToken);
         executeUpdate(query);
 
-        confirmEmail(confirmationToken, 401);
+        confirmEmail(confirmationToken, 403);
     }
 
     @Test(description = "Confirm an email twice with same token")
@@ -279,7 +279,10 @@ public class AuthenticationTests extends GenericTest {
         String refreshToken = registerResponse.getRefreshToken();
 
         String query = "UPDATE token SET expiry_date = '%s' WHERE token = '%s'".formatted(
-                Timestamp.from(Instant.now().minusSeconds(60 * 90).truncatedTo(ChronoUnit.SECONDS)), refreshToken);
+                Timestamp.from(Instant.now()
+                        .plusSeconds(60 * 90)
+                        .truncatedTo(ChronoUnit.SECONDS)
+                ), refreshToken);
         executeUpdate(query);
 
         String body = "{\"refreshToken\":\"" + refreshToken + "\"}";

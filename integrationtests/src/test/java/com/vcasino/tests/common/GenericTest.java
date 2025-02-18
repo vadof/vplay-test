@@ -41,6 +41,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -65,6 +66,8 @@ public abstract class GenericTest {
         this.service = service;
         auth = null;
         config = loadServiceConfig(service);
+
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
     }
 
     private ServiceConfig loadServiceConfig(Service service) {
@@ -290,7 +293,7 @@ public abstract class GenericTest {
                 }
             }
 
-            sleep(2000);
+            sleep(3000);
 
             maxAttempts--;
         }
