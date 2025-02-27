@@ -235,7 +235,7 @@ public class TasksTest extends GenericClickerTest {
 
     @Test(description = "Receive task reward")
     void testReceiveTaskReward() throws Exception {
-        Account account = createAccount();
+        Account account = createAccount().getAccount();
         AddTaskRequest request = sendAddTaskRequest("jNQXAC9IVRw", "Watch", "YouTube", 200);
 
         int taskId = getTaskIdByName(request.getTaskName());

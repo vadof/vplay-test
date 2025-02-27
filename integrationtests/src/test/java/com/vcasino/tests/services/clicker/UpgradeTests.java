@@ -2,7 +2,7 @@ package com.vcasino.tests.services.clicker;
 
 import com.vcasino.tests.common.Service;
 import com.vcasino.tests.model.Row;
-import com.vcasino.tests.services.clicker.model.Account;
+import com.vcasino.tests.services.clicker.model.AccountResponse;
 import com.vcasino.tests.services.clicker.model.SectionUpgrades;
 import com.vcasino.tests.services.clicker.model.Upgrade;
 import org.slf4j.Logger;
@@ -30,9 +30,9 @@ public class UpgradeTests extends GenericClickerTest {
 
     @Test(description = "Buy upgrade")
     void testBuyUpgrade() throws Exception {
-        Account account = createAccount();
-        account.getSectionUpgrades().sort(Comparator.comparingInt(SectionUpgrades::getOrder));
-        SectionUpgrades selectedSection = account.getSectionUpgrades().getFirst();
+        AccountResponse accountResponse = createAccount();
+        accountResponse.getSectionUpgrades().sort(Comparator.comparingInt(SectionUpgrades::getOrder));
+        SectionUpgrades selectedSection = accountResponse.getSectionUpgrades().getFirst();
 
         Upgrade toBuy = null;
         for (Upgrade upgrade : selectedSection.getUpgrades()) {
@@ -41,32 +41,32 @@ public class UpgradeTests extends GenericClickerTest {
                 break;
             }
         }
+
         assertNotNull(toBuy, "Not found upgrade to update");
         log.info("Chosen to buy {}", toBuy);
 
         addCoinsToAccount(accountId, toBuy.getPrice());
 
-        String body = "{\"upgradeName\":\"%s\", \"upgradeLevel\":%s}"
-                .formatted(toBuy.getName(), toBuy.getLevel());
+        String body = "{\"upgradeName\":\"%s\"}".formatted(toBuy.getName());
 
         String res = performHttpPost(buildUrl("/upgrades"), body, getAttrsWithAuthorization(false));
-        Account updatedAccount = toAccount(res);
+        AccountResponse updatedAccountRes = toAccountResponse(res);
 
-        assertEquals(updatedAccount.getBalanceCoins().longValue(), 0);
-        assertEquals(updatedAccount.getSectionUpgrades().size(), account.getSectionUpgrades().size());
-        for (SectionUpgrades su : account.getSectionUpgrades()) {
-            int size = updatedAccount.getSectionUpgrades()
-                    .stream().filter(s -> s.getOrder().equals(su.getOrder()))
+        assertEquals(updatedAccountRes.getAccount().getBalanceCoins().longValue(), 0);
+        assertEquals(updatedAccountRes.getSectionUpgrades().size(), accountResponse.getSectionUpgrades().size());
+        for (SectionUpgrades su : accountResponse.getSectionUpgrades()) {
+            int size = updatedAccountRes.getSectionUpgrades().stream()
+                    .filter(s -> s.getOrder().equals(su.getOrder()))
                     .toList().getFirst().getUpgrades().size();
             assertEquals(size, su.getUpgrades().size());
         }
 
-        assertTrue(updatedAccount.getPassiveEarnPerSec() > account.getPassiveEarnPerSec());
+        assertTrue(updatedAccountRes.getAccount().getPassiveEarnPerSec() > accountResponse.getAccount().getPassiveEarnPerSec());
 
         log.info("Check if upgrade was updated");
 
         String boughtUpgradeName = toBuy.getName();
-        Optional<Upgrade> optionalUpdatedUpgrade = updatedAccount.getSectionUpgrades()
+        Optional<Upgrade> optionalUpdatedUpgrade = updatedAccountRes.getSectionUpgrades()
                 .stream()
                 .filter(su -> su.getSection().equals(selectedSection.getSection()))
                 .findFirst().get()
@@ -80,11 +80,19 @@ public class UpgradeTests extends GenericClickerTest {
         assertEquals(updatedUpgrade.getLevel(), toBuy.getLevel() + 1);
         assertTrue(updatedUpgrade.getPrice() > toBuy.getPrice());
         assertTrue(updatedUpgrade.getProfitPerHour() > toBuy.getProfitPerHour());
+
+        log.info("Validate bought upgrade in database");
+
+        List<Row> rows = getAllUpgradesFromDatabaseByAccount(accountId);
+        assertEquals(rows.size(), 1);
+        Row row = rows.getFirst();
+        assertEquals(row.get("name"), toBuy.getName());
+        assertEquals(row.getInt("level"), toBuy.getLevel() + 1);
     }
 
     @Test(description = "Buy all upgrades")
     void testBuyAllUpgrades() throws Exception {
-        Account account = createAccount();
+        AccountResponse accountResponse = createAccount();
 
         log.info("Get all upgrades and their total price");
 
@@ -107,18 +115,24 @@ public class UpgradeTests extends GenericClickerTest {
 
         addCoinsToAccount(accountId, totalPrice);
 
-        log.info("Starting upgrades");
+        log.info("Start buying upgrades");
 
+        int previousDatabaseRecordAmount = 0;
         boolean canUpdate = true;
+
         while (totalElements > 0 && canUpdate) {
             canUpdate = false;
             List<Upgrade> toBuy = new ArrayList<>();
 
-            for (SectionUpgrades section : account.getSectionUpgrades()) {
+            int newUpgrades = 0;
+            for (SectionUpgrades section : accountResponse.getSectionUpgrades()) {
                 for (Upgrade upgrade : section.getUpgrades()) {
                     if (upgrade.getAvailable()) {
                         toBuy.add(upgrade);
                         canUpdate = true;
+                        if (upgrade.getLevel() == 0) {
+                            newUpgrades++;
+                        }
                     }
                 }
             }
@@ -126,28 +140,44 @@ public class UpgradeTests extends GenericClickerTest {
             log.info("Found {} upgrades to update", toBuy.size());
 
             for (Upgrade upgrade : toBuy) {
-                String body = "{\"upgradeName\":\"%s\", \"upgradeLevel\":%s}"
-                        .formatted(upgrade.getName(), upgrade.getLevel());
+                String body = "{\"upgradeName\":\"%s\"}".formatted(upgrade.getName());
 
                 String res = performHttpPost(buildUrl("/upgrades"), body, getAttrsWithAuthorization(false));
-                account = toAccount(res);
+                accountResponse = toAccountResponse(res);
             }
 
             totalElements -= toBuy.size();
+
+
+            if (newUpgrades > 0) {
+                int recordAmount = getAllUpgradesFromDatabaseByAccount(accountId).size();
+                assertEquals(recordAmount, previousDatabaseRecordAmount + newUpgrades);
+                previousDatabaseRecordAmount = recordAmount;
+            }
         }
 
         assertEquals(totalElements, 0,
-                "Not all upgrades were bought. Left " + totalElements + " elements. Current account status: " + account.toString());
+                "Not all upgrades were bought. Left " + totalElements + " elements. Current account status: " + accountResponse.toString());
 
         Integer passiveEarnPerHour = 0;
-        for (SectionUpgrades su : account.getSectionUpgrades()) {
+        for (SectionUpgrades su : accountResponse.getSectionUpgrades()) {
             for (Upgrade u : su.getUpgrades()) {
                 assertTrue(u.getMaxLevel(), "Not max level " + u);
                 passiveEarnPerHour += u.getProfitPerHour();
             }
         }
 
-        assertEquals(passiveEarnPerHour, account.getPassiveEarnPerHour());
+        assertEquals(passiveEarnPerHour, accountResponse.getAccount().getPassiveEarnPerHour());
+    }
+
+    private List<Row> getAllUpgradesFromDatabaseByAccount(Long accountId) {
+        String query = """
+                SELECT u.name, u.level FROM account a
+                JOIN account_upgrade au ON au.account_id = a.id
+                JOIN upgrade u ON au.upgrade_name = u.name AND au.upgrade_level = u.level
+                WHERE a.id = %s""".formatted(accountId);
+
+        return executeQuery(query);
     }
 
 }

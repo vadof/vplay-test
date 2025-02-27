@@ -4,6 +4,7 @@ import com.vcasino.tests.common.GenericTest;
 import com.vcasino.tests.model.AuthenticationResponse;
 import com.vcasino.tests.model.Row;
 import com.vcasino.tests.services.clicker.model.Account;
+import com.vcasino.tests.services.clicker.model.AccountResponse;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -18,7 +19,7 @@ public abstract class GenericClickerTest extends GenericTest {
     protected AuthenticationResponse authenticatedUser;
     protected Long accountId;
 
-    protected Account createAccount() throws Exception {
+    protected AccountResponse createAccount() throws Exception {
         log.info("Create new Account");
 
         authenticatedUser = createNewUser();
@@ -26,7 +27,7 @@ public abstract class GenericClickerTest extends GenericTest {
         sleep(1000);
 
         String res = performHttpGet("/api/v1/clicker/accounts", getAttrsWithAuthorization());
-        return fromJson(res, Account.class);
+        return toAccountResponse(res);
     }
 
     protected void addCoinsToAccount(Long accountId, Integer amount) throws Exception {
@@ -52,7 +53,7 @@ public abstract class GenericClickerTest extends GenericTest {
     protected Account getAccount() throws Exception {
         log.info("Get Account");
         String res = performHttpGet("/api/v1/clicker/accounts", getAttrsWithAuthorization());
-        return toAccount(res);
+        return toAccountResponse(res).getAccount();
     }
 
     protected void setPassiveEarnPerHourForAccount(Integer value) {
@@ -64,6 +65,10 @@ public abstract class GenericClickerTest extends GenericTest {
 
     protected Account toAccount(String s) throws Exception {
         return fromJson(s, Account.class);
+    }
+
+    protected AccountResponse toAccountResponse(String s) throws Exception {
+        return fromJson(s, AccountResponse.class);
     }
 
     protected String buildUrl(String endpoint) {

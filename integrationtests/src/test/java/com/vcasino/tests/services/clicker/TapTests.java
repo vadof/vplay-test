@@ -24,7 +24,7 @@ public class TapTests extends GenericClickerTest {
 
     @Test(description = "Tap works correctly")
     void testTap() throws Exception {
-        Account account = createAccount();
+        Account account = createAccount().getAccount();
 
         sleep(1000);
         int amount = account.getAvailableTaps();
@@ -39,7 +39,7 @@ public class TapTests extends GenericClickerTest {
 
     @Test(description = "Taps recovering correctly")
     void testTapsRecoveringCorrectly() throws Exception {
-        Account account = createAccount();
+        Account account = createAccount().getAccount();
 
         sleep(1000);
         int amount = account.getAvailableTaps();
@@ -60,7 +60,7 @@ public class TapTests extends GenericClickerTest {
 
     @Test(description = "If amount is more than can be taped over time, suspicious action is added")
     void testCannotTapMoreThanPossible() throws Exception {
-        Account account = createAccount();
+        Account account = createAccount().getAccount();
 
         sleep(1000);
         int amount = account.getAvailableTaps();
@@ -85,7 +85,7 @@ public class TapTests extends GenericClickerTest {
 
     @Test(description = "If 2 tap requests with the same timestamp are sent, the second request is ignored")
     void testSameTimestampTapIsIgnored() throws Exception {
-        Account account = createAccount();
+        Account account = createAccount().getAccount();
 
         sleep(1000);
         int amount = account.getAvailableTaps();
@@ -106,7 +106,7 @@ public class TapTests extends GenericClickerTest {
 
     @Test(description = "Earn per hour is updated after tap")
     void testEarnPerHourIsUpdatedAfterTap() throws Exception {
-        Account account = createAccount();
+        Account account = createAccount().getAccount();
         sleep(1000);
 
         setPassiveEarnPerHourForAccount(3600);

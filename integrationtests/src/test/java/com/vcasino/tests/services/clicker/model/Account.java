@@ -3,7 +3,6 @@ package com.vcasino.tests.services.clicker.model;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 @Data
 public class Account {
@@ -16,5 +15,4 @@ public class Account {
     Integer tapsRecoverPerSec;
     Integer passiveEarnPerHour;
     Double passiveEarnPerSec;
-    List<SectionUpgrades> sectionUpgrades;
 }

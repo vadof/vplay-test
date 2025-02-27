@@ -3,6 +3,7 @@ package com.vcasino.tests.services.clicker;
 import com.vcasino.tests.common.Service;
 import com.vcasino.tests.model.Row;
 import com.vcasino.tests.services.clicker.model.Account;
+import com.vcasino.tests.services.clicker.model.AccountResponse;
 import com.vcasino.tests.services.clicker.model.Level;
 import com.vcasino.tests.services.clicker.model.SectionUpgrades;
 import com.vcasino.tests.services.clicker.model.Upgrade;
@@ -34,10 +35,11 @@ public class AccountTests extends GenericClickerTest {
 
     @Test(description = "Create clicker account")
     void testCreateClickerAccountTest() throws Exception {
-        Account account = createAccount();
+        AccountResponse accountResponse = createAccount();
 
-        compareWithDatabase(account, authenticatedUser.getUser().getUsername());
-        validateSectionUpgrades(account.getSectionUpgrades());
+        compareWithDatabase(accountResponse.getAccount(), authenticatedUser.getUser().getUsername());
+        validateSectionUpgrades(accountResponse.getSectionUpgrades());
+        validateNoSectionsInDatabase(accountId);
     }
 
     @Test(description = "Get levels")
@@ -141,6 +143,18 @@ public class AccountTests extends GenericClickerTest {
                 assertNotNull(upgrade.getAvailable());
             }
         }
+
+
+    }
+
+    private void validateNoSectionsInDatabase(Long accountId) {
+        String query = """
+                SELECT * FROM account a
+                JOIN account_upgrade au ON au.account_id = a.id
+                WHERE a.id = %s""".formatted(accountId);
+
+        List<Row> rows = executeQuery(query);
+        assertTrue(rows.isEmpty());
     }
 
 }
