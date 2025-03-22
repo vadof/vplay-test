@@ -36,5 +36,24 @@
       "user": "postgres",
       "password": "admin"
     }
+  },
+  "walletService": {
+    "address": "http://localhost",
+    "port": "8080",
+    "mailDevUrl": "http://localhost:1080/email",
+    "adminUser": {
+      "username": "admin",
+      "password": "R84+sc5+6'cx'(35qcmaf.=1;D9Hiq[j-J=ol$b{n)VaQ[HQ6N"
+    },
+    "database": {
+      "url": "jdbc:postgresql://localhost:5432/wallet_service",
+      "user": "postgres",
+      "password": "admin"
+    },
+    "registrationDatabase": {
+      "url": "jdbc:postgresql://localhost:5432/user_service",
+      "user": "postgres",
+      "password": "admin"
+    }
   }
 }

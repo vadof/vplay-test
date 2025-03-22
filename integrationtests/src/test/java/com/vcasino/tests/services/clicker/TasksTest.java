@@ -19,8 +19,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -129,20 +131,22 @@ public class TasksTest extends GenericClickerTest {
         getVideoInfo(videoId + videoId, "Youtube", 400);
     }
 
-    @Test(description = "Get video properties")
-    void testGetVideoProperties() throws Exception {
+    @Test(description = "Get tasks properties")
+    void testGetTasksProperties() throws Exception {
         String s = performHttpGet(buildUrl("/admin/tasks/properties"), getAttrsWithAuthorization(true), 200);
-        Map<String, List<String>> properties = fromJson(s, Map.class);
+        List<SupportedTaskServices> properties = Arrays.asList(fromJson(s, SupportedTaskServices[].class));
 
-        assertTrue(properties.containsKey("Watch"));
-        assertTrue(properties.containsKey("Subscribe"));
+        assertEquals(properties.size(), 2);
 
-        assertFalse(properties.get("Watch").isEmpty());
-        assertFalse(properties.get("Subscribe").isEmpty());
+        Optional<SupportedTaskServices> watch = properties.stream().filter(p -> p.taskType.equals("Watch")).findFirst();
+        Optional<SupportedTaskServices> subscribe = properties.stream().filter(p -> p.taskType.equals("Subscribe")).findFirst();
 
-        assertTrue(properties.get("Watch").contains("YouTube"));
-        assertTrue(properties.get("Subscribe").contains("YouTube"));
-        assertTrue(properties.get("Subscribe").contains("Telegram"));
+        assertTrue(watch.isPresent());
+        assertTrue(subscribe.isPresent());
+
+        assertTrue(watch.get().services.contains("YouTube"));
+        assertTrue(subscribe.get().services.contains("YouTube"));
+        assertTrue(subscribe.get().services.contains("Telegram"));
     }
 
     @Test(description = "Add youtube watch task")
@@ -496,6 +500,15 @@ public class TasksTest extends GenericClickerTest {
                     }""".formatted(id, taskType,service, rewardCoins,
                     taskName, start.format(formatter), end.format(formatter));
         }
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    static class SupportedTaskServices {
+        String taskType;
+        List<String> services;
     }
 
 }

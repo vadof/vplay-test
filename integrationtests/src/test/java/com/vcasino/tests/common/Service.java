@@ -7,7 +7,8 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum Service {
     USER("userService"),
-    CLICKER("clickerService");
+    CLICKER("clickerService"),
+    WALLET("walletService");
 
     private final String name;
 

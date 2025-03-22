@@ -5,7 +5,9 @@ import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 
 @AllArgsConstructor
 @ToString
@@ -47,5 +49,17 @@ public class Row {
         Object o = row.get(column);
         if (o == null) return null;
         return (Timestamp) o;
+    }
+
+    public Instant getInstant(String column) {
+        Object o = row.get(column);
+        if (o == null) return null;
+        return ((Timestamp) o).toInstant();
+    }
+
+    public UUID getUUID(String column) {
+        Object o = row.get(column);
+        if (o == null) return null;
+        return (UUID) o;
     }
 }
