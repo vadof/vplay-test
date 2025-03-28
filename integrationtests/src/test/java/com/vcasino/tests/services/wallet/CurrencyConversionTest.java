@@ -7,11 +7,15 @@ import com.vcasino.tests.services.wallet.model.CurrencyConversionPayload;
 import com.vcasino.tests.services.wallet.model.OutboxEvent;
 import com.vcasino.tests.services.wallet.model.Wallet;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
+import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -192,5 +196,44 @@ public class CurrencyConversionTest extends GenericWalletTest {
         String body = objToJson(Map.of("amount", dollars.toString()));
 
         performHttpPost(VCOINS_TO_VDOLLARS_URL, body, getAttrsWithAuthorization(), 400);
+    }
+
+    @Test(description = "Convert VCoins to VDollars sends notification")
+    void convertVCoinsToVDollarsSendNotification() throws Exception {
+        createWallet();
+        BigDecimal coins = new BigDecimal("100000");
+        addCoinsToClickerAccount(new BigDecimal("100000"));
+        String body = objToJson(Map.of("amount", coins.toString()));
+
+        WebClient webClient = WebClient.builder()
+                .baseUrl(config.getAddress() + ":" + config.getPort())
+                .defaultHeader("Authorization", getAttrsWithAuthorization().get("Authorization"))
+                .build();
+
+        Mono<String> firstMessage = webClient.get()
+                .uri("/notifications/stream")
+                .accept(MediaType.TEXT_EVENT_STREAM)
+                .retrieve()
+                .bodyToFlux(String.class)
+                .next()
+                .timeout(Duration.ofSeconds(5))
+                .doOnNext(message -> {
+                    Response response = jsonToObject(message);
+                    assertNotNull(response.get("message"));
+                    assertEquals("BALANCE", response.get("type"));
+                    assertEquals(1, (int) response.getDouble("data").doubleValue());
+                });
+
+        Mono.delay(Duration.ofMillis(1000))
+                .then(Mono.fromRunnable(() -> {
+                    try {
+                        performHttpPost(VCOINS_TO_VDOLLARS_URL, body, getAttrsWithAuthorization(), 200);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }))
+                .subscribe();
+
+        firstMessage.block();
     }
 }

@@ -24,6 +24,14 @@ public class Response {
         return null;
     }
 
+    public Double getDouble(String key) {
+        Object v = fields.get(key);
+        if (v != null) {
+            return (double) v;
+        }
+        return null;
+    }
+
     public Long getLong(String key) {
         Object v = fields.get(key);
         if (v != null) {
