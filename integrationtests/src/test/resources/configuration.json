@@ -12,10 +12,12 @@
       "user": "postgres",
       "password": "admin"
     },
-    "registrationDatabase": {
-      "url": "jdbc:postgresql://localhost:5432/user_service",
-      "user": "postgres",
-      "password": "admin"
+    "additionalDatabases": {
+      "user": {
+        "url": "jdbc:postgresql://localhost:5432/user_service",
+        "user": "postgres",
+        "password": "admin"
+      }
     }
   },
   "clickerService": {
@@ -31,10 +33,12 @@
       "user": "postgres",
       "password": "admin"
     },
-    "registrationDatabase": {
-      "url": "jdbc:postgresql://localhost:5432/user_service",
-      "user": "postgres",
-      "password": "admin"
+    "additionalDatabases": {
+      "user": {
+        "url": "jdbc:postgresql://localhost:5432/user_service",
+        "user": "postgres",
+        "password": "admin"
+      }
     }
   },
   "walletService": {
@@ -50,10 +54,43 @@
       "user": "postgres",
       "password": "admin"
     },
-    "registrationDatabase": {
-      "url": "jdbc:postgresql://localhost:5432/user_service",
+    "additionalDatabases": {
+      "user": {
+        "url": "jdbc:postgresql://localhost:5432/user_service",
+        "user": "postgres",
+        "password": "admin"
+      }
+    }
+  },
+  "betService": {
+    "address": "http://localhost",
+    "port": "8080",
+    "mailDevUrl": "http://localhost:1080/email",
+    "adminUser": {
+      "username": "admin",
+      "password": "R84+sc5+6'cx'(35qcmaf.=1;D9Hiq[j-J=ol$b{n)VaQ[HQ6N"
+    },
+    "database": {
+      "url": "jdbc:postgresql://localhost:5432/bet_service",
       "user": "postgres",
       "password": "admin"
+    },
+    "additionalDatabases": {
+      "wallet": {
+        "url": "jdbc:postgresql://localhost:5432/wallet_service",
+        "user": "postgres",
+        "password": "admin"
+      },
+      "user": {
+        "url": "jdbc:postgresql://localhost:5432/user_service",
+        "user": "postgres",
+        "password": "admin"
+      }
+    },
+    "redis": {
+      "url": "localhost",
+      "port": 6379,
+      "password": "my_password"
     }
   }
 }

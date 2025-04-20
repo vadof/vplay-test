@@ -8,7 +8,8 @@ import lombok.Getter;
 public enum Service {
     USER("userService"),
     CLICKER("clickerService"),
-    WALLET("walletService");
+    WALLET("walletService"),
+    BET("betService");
 
     private final String name;
 

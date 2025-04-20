@@ -21,6 +21,8 @@
         <logback.version>1.5.6</logback.version>
         <slf4j.version>2.0.13</slf4j.version>
         <spring-webflux.version>6.2.5</spring-webflux.version>
+        <redis.version>3.4.4</redis.version>
+        <redis-lettuce.version>6.5.5.RELEASE</redis-lettuce.version>
     </properties>
 
     <dependencies>
@@ -70,11 +72,22 @@
             <version>${logback.version}</version>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/org.springframework/spring-webflux -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-webflux</artifactId>
             <version>${spring-webflux.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-redis</artifactId>
+            <version>${redis.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.lettuce</groupId>
+            <artifactId>lettuce-core</artifactId>
+            <version>${redis-lettuce.version}</version>
         </dependency>
 
     </dependencies>

@@ -4,6 +4,8 @@ import com.vcasino.tests.common.Service;
 import com.vcasino.tests.model.User;
 import lombok.Data;
 
+import java.util.Map;
+
 @Data
 public class ServiceConfig {
     String address;
@@ -11,6 +13,7 @@ public class ServiceConfig {
     String mailDevUrl;
     Service service;
     DbConfig dbConfig;
-    DbConfig registrationDbConfig;
+    Map<String, DbConfig> additionalDbConfigs;
+    RedisConfig redisConfig;
     User adminUser;
 }

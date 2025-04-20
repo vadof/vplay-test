@@ -5,7 +5,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.internal.LinkedTreeMap;
+import com.google.gson.reflect.TypeToken;
 import com.vcasino.tests.common.config.DbConfig;
+import com.vcasino.tests.common.config.RedisConfig;
 import com.vcasino.tests.common.config.ServiceConfig;
 import com.vcasino.tests.model.AuthenticationResponse;
 import com.vcasino.tests.model.EmailTokenOptions;
@@ -15,6 +17,11 @@ import com.vcasino.tests.model.User;
 import com.vcasino.tests.model.email.Address;
 import com.vcasino.tests.model.email.Email;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -81,8 +88,10 @@ public abstract class GenericTest {
         JsonObject serviceJson = jsonObject.getAsJsonObject(service.getName());
 
         DbConfig dbConfig = gson.fromJson(serviceJson.getAsJsonObject("database"), DbConfig.class);
-        DbConfig registrationDbConfig = gson.fromJson(serviceJson.getAsJsonObject("registrationDatabase"), DbConfig.class);
+        Map<String, DbConfig> additionalDbConfigs = gson.fromJson(serviceJson.getAsJsonObject("additionalDatabases"),
+                new TypeToken<Map<String, DbConfig>>() {}.getType());
         User admin = gson.fromJson(serviceJson.getAsJsonObject("adminUser"), User.class);
+        RedisConfig redisConfig = gson.fromJson(serviceJson.getAsJsonObject("redis"), RedisConfig.class);
 
         ServiceConfig serviceConfig = new ServiceConfig();
         serviceConfig.setAdminUser(admin);
@@ -91,7 +100,8 @@ public abstract class GenericTest {
         serviceConfig.setPort(serviceJson.get("port").getAsString());
         serviceConfig.setMailDevUrl(serviceJson.get("mailDevUrl").getAsString());
         serviceConfig.setDbConfig(dbConfig);
-        serviceConfig.setRegistrationDbConfig(registrationDbConfig);
+        serviceConfig.setAdditionalDbConfigs(additionalDbConfigs);
+        serviceConfig.setRedisConfig(redisConfig);
 
         return serviceConfig;
     }
@@ -261,7 +271,7 @@ public abstract class GenericTest {
                  JOIN my_user u on t.user_id = u.id
                  WHERE u.username = '%s'
                  """.formatted(username);
-        List<Row> rows = executeQuery(query, config.getRegistrationDbConfig());
+        List<Row> rows = executeQuery(query, config.getAdditionalDbConfigs().get("user"));
         assertEquals(rows.size(), 1);
 
         return rows.getFirst().get("token");
@@ -468,6 +478,10 @@ public abstract class GenericTest {
         return executeQuery(query, config.getDbConfig());
     }
 
+    protected List<Row> executeQuery(String query, String configName) {
+        return executeQuery(query, config.getAdditionalDbConfigs().get(configName));
+    }
+
     private List<Row> executeQuery(String query, DbConfig dbConfig) {
         List<Row> rows = new ArrayList<>();
 
@@ -502,6 +516,10 @@ public abstract class GenericTest {
         executeUpdate(query, config.getDbConfig());
     }
 
+    protected void executeUpdate(String query, String configName) {
+        executeUpdate(query, config.getAdditionalDbConfigs().get(configName));
+    }
+
     private void executeUpdate(String query, DbConfig config) {
         log.info("Execute update {}", query);
 
@@ -534,7 +552,7 @@ public abstract class GenericTest {
 
     protected Long getUserId(String username) {
         String query = "SELECT * FROM my_user u WHERE u.username = '%s'".formatted(username);
-        List<Row> row = executeQuery(query, config.getRegistrationDbConfig());
+        List<Row> row = executeQuery(query, config.getAdditionalDbConfigs().get("user"));
         assertEquals(row.size(), 1);
         return row.getFirst().getLong("id");
     }
@@ -543,5 +561,29 @@ public abstract class GenericTest {
         String resourceName = serviceName + "/" + className + "/" + fileName;
         URI uri = this.getClass().getClassLoader().getResource(resourceName).toURI();
         return Files.readString(Path.of(uri));
+    }
+
+    private RedisConnection getRedisConnection() {
+        RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration(config.getRedisConfig().getUrl(),
+                config.getRedisConfig().getPort());
+        redisConfig.setPassword(config.getRedisConfig().getPassword());
+
+        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
+                .build();
+
+        LettuceConnectionFactory factory = new LettuceConnectionFactory(redisConfig, clientConfig);
+        factory.afterPropertiesSet();
+
+        RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
+        redisTemplate.setConnectionFactory(factory);
+        redisTemplate.afterPropertiesSet();
+
+        return factory.getConnection();
+    }
+
+    protected void redisFlushCache() {
+        RedisConnection connection = getRedisConnection();
+        connection.serverCommands().flushAll();
+        connection.close();
     }
 }

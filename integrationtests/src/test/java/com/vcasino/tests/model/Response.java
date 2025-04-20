@@ -6,6 +6,10 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -75,5 +79,21 @@ public class Response {
             return gson.fromJson(gson.toJson(v), clazz);
         }
         return null;
+    }
+
+    public <T> List<T> getList(String key, Class<T> clazz) {
+        Object v = fields.get(key);
+        if (v instanceof List<?>) {
+            Gson gson = new Gson();
+            List<?> rawList = (List<?>) v;
+
+            List<T> result = new ArrayList<>();
+            for (Object item : rawList) {
+                T obj = gson.fromJson(gson.toJson(item), clazz);
+                result.add(obj);
+            }
+            return result;
+        }
+        return Collections.emptyList();
     }
 }
